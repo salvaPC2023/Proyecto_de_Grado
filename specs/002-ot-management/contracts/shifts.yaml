@@ -1,0 +1,111 @@
+openapi: 3.1.0
+info:
+  title: OT Management — Shifts API
+  version: 1.0.0
+  description: |
+    Current shift information. Shifts are fixed 8-hour windows computed server-side
+    from the server clock. Clients use this endpoint to display the active shift
+    context without implementing shift logic independently.
+
+    Shift windows (server timezone, configured via SERVER_TIMEZONE env var,
+    default America/La_Paz UTC-4):
+      Shift 1: 23:00 – 07:00
+      Shift 2: 07:00 – 15:00
+      Shift 3: 15:00 – 23:00
+
+    Available to both roles.
+
+servers:
+  - url: https://{host}/api/v1
+    variables:
+      host:
+        default: localhost:8000
+
+security:
+  - bearerAuth: []
+
+paths:
+
+  /shifts/current:
+    get:
+      operationId: getCurrentShift
+      summary: Get the current active shift
+      description: |
+        Returns the shift number that is active at the server's current time,
+        along with the shift's time window and the server's current datetime.
+        Available to both roles.
+      responses:
+        '200':
+          description: Current shift information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentShift'
+              examples:
+                shift2_example:
+                  summary: Shift 2 active at 10:30
+                  value:
+                    shift_number: 2
+                    start_time: "07:00"
+                    end_time: "15:00"
+                    server_datetime: "2026-06-09T10:30:00-04:00"
+                shift1_example:
+                  summary: Shift 1 active at 02:15 (crosses midnight)
+                  value:
+                    shift_number: 1
+                    start_time: "23:00"
+                    end_time: "07:00"
+                    server_datetime: "2026-06-09T02:15:00-04:00"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid/expired token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            detail: "Not authenticated."
+
+  schemas:
+
+    CurrentShift:
+      type: object
+      required: [shift_number, start_time, end_time, server_datetime]
+      properties:
+        shift_number:
+          type: integer
+          enum: [1, 2, 3]
+          description: "Active shift number (1, 2, or 3)."
+          example: 2
+        start_time:
+          type: string
+          pattern: '^[0-2][0-9]:[0-5][0-9]$'
+          description: "Shift start time in HH:MM format (server timezone)."
+          example: "07:00"
+        end_time:
+          type: string
+          pattern: '^[0-2][0-9]:[0-5][0-9]$'
+          description: "Shift end time in HH:MM format (server timezone)."
+          example: "15:00"
+        server_datetime:
+          type: string
+          format: date-time
+          description: "Current server datetime with UTC offset."
+          example: "2026-06-09T10:30:00-04:00"
+
+    ErrorResponse:
+      type: object
+      required: [detail]
+      properties:
+        detail:
+          type: string

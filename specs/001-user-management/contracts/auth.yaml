@@ -1,0 +1,128 @@
+openapi: 3.1.0
+info:
+  title: User Management — Auth API
+  version: 1.0.0
+  description: Authentication endpoints for the mobile maintenance app.
+
+servers:
+  - url: https://{host}/api/v1
+    variables:
+      host:
+        default: localhost:8000
+
+paths:
+  /auth/login:
+    post:
+      operationId: login
+      summary: Authenticate with username and password
+      description: |
+        Returns a JWT access token on success. The token expires after 24 hours.
+        Disabled accounts receive HTTP 403.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "Invalid username or password."
+        '403':
+          description: Account is disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "This account has been disabled. Contact your supervisor."
+        '422':
+          description: Validation error (missing required fields)
+
+  /auth/logout:
+    post:
+      operationId: logout
+      summary: End the current session
+      description: |
+        Server-side the token is not stored, so logout is effectively client-side
+        (delete the token from secure storage). This endpoint is provided for
+        consistency and future token blacklist support.
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Logged out successfully
+        '401':
+          description: No valid token provided
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+          example: "juan.perez"
+        password:
+          type: string
+          minLength: 6
+          example: "COLBO2026"
+
+    LoginResponse:
+      type: object
+      required: [access_token, token_type, user]
+      properties:
+        access_token:
+          type: string
+          description: JWT access token (24-hour TTL)
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        token_type:
+          type: string
+          enum: [bearer]
+        user:
+          $ref: '#/components/schemas/UserSummary'
+
+    UserSummary:
+      type: object
+      required: [id, username, display_name, role, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        display_name:
+          type: string
+        role:
+          type: string
+          enum: [supervisor, technician]
+        status:
+          type: string
+          enum: [active, disabled]
+
+    ErrorResponse:
+      type: object
+      required: [detail]
+      properties:
+        detail:
+          type: string

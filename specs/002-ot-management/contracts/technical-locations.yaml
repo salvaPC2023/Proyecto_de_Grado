@@ -1,0 +1,149 @@
+openapi: 3.1.0
+info:
+  title: OT Management — Technical Locations API
+  version: 1.0.0
+  description: |
+    Technical location hierarchy (read-only) and ranked OT count report.
+    All endpoints require a valid Bearer JWT token.
+
+    Technical locations are pre-seeded and cannot be created or modified via
+    this API. The full flat list is returned so that mobile clients can
+    implement drill-down navigation locally.
+
+servers:
+  - url: https://{host}/api/v1
+    variables:
+      host:
+        default: localhost:8000
+
+security:
+  - bearerAuth: []
+
+paths:
+
+  /technical-locations:
+    get:
+      operationId: listTechnicalLocations
+      summary: List all technical locations
+      description: |
+        Returns the complete flat list of technical locations. Each row represents a
+        unique leaf node in the equipment hierarchy (sector → subsector → system →
+        subsystem). Mobile clients group and filter this list to implement the
+        drill-down selector UI. Available to both roles.
+      responses:
+        '200':
+          description: Full list of technical locations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TechnicalLocation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /technical-locations/report:
+    get:
+      operationId: getTechnicalLocationReport
+      summary: Technical location OT count report
+      description: |
+        Returns all technical locations sorted in descending order by the total
+        number of registered Work Orders. Includes locations with zero OTs.
+        Supervisor only.
+      responses:
+        '200':
+          description: Ranked list of technical locations with OT counts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TechnicalLocationReportEntry'
+              example:
+                - technical_location:
+                    id: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                    sector: "Producción"
+                    subsector: "Línea A"
+                    system: "Motor Principal"
+                    subsystem: "Rodamientos"
+                  ot_count: 14
+                - technical_location:
+                    id: "4fb96a75-6828-5673-c4gd-3d074g77bgb7"
+                    sector: "Producción"
+                    subsector: "Línea B"
+                    system: "Compresor"
+                    subsystem: "Válvulas"
+                  ot_count: 7
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid/expired token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            detail: "Not authenticated."
+    Forbidden:
+      description: Authenticated but insufficient role
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            detail: "Supervisor access required."
+
+  schemas:
+
+    TechnicalLocation:
+      type: object
+      required: [id, sector, subsector, system, subsystem]
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+        sector:
+          type: string
+          example: "Producción"
+        subsector:
+          type: string
+          example: "Línea A"
+        system:
+          type: string
+          example: "Motor Principal"
+        subsystem:
+          type: string
+          example: "Rodamientos"
+
+    TechnicalLocationReportEntry:
+      type: object
+      required: [technical_location, ot_count]
+      properties:
+        technical_location:
+          $ref: '#/components/schemas/TechnicalLocation'
+        ot_count:
+          type: integer
+          minimum: 0
+          description: |
+            Total number of Work Orders (any status, any shift) associated with
+            this technical location.
+          example: 14
+
+    ErrorResponse:
+      type: object
+      required: [detail]
+      properties:
+        detail:
+          type: string

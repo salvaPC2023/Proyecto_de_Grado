@@ -1,0 +1,403 @@
+openapi: 3.1.0
+info:
+  title: User Management — Users API
+  version: 1.0.0
+  description: |
+    Profile management and Supervisor roster endpoints.
+    All endpoints require a valid Bearer JWT token.
+
+servers:
+  - url: https://{host}/api/v1
+    variables:
+      host:
+        default: localhost:8000
+
+security:
+  - bearerAuth: []
+
+paths:
+
+  # ── Own profile (both roles) ─────────────────────────────────────────────
+
+  /users/me:
+    get:
+      operationId: getMyProfile
+      summary: Get own profile
+      description: Returns the authenticated user's profile. Available to both roles.
+      responses:
+        '200':
+          description: Own profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    patch:
+      operationId: updateMyDisplayName
+      summary: Update own display name
+      description: |
+        Updates the authenticated user's display name. Available to both roles.
+        Username cannot be changed by the owner (use supervisor endpoint for that).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDisplayNameRequest'
+      responses:
+        '200':
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          description: Validation error
+
+  /users/me/password:
+    patch:
+      operationId: changeMyPassword
+      summary: Change own password
+      description: |
+        Changes the authenticated user's password. Requires current password as
+        confirmation. Available to both roles.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '204':
+          description: Password changed successfully
+        '400':
+          description: Current password is incorrect
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "Current password is incorrect."
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          description: Validation error (e.g. new password too short)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "New password must be at least 6 characters."
+
+  # ── Technician roster (Supervisor only) ──────────────────────────────────
+
+  /technicians:
+    get:
+      operationId: listTechnicians
+      summary: List all technician accounts
+      description: Returns all technician accounts with name and status. Supervisor only.
+      responses:
+        '200':
+          description: List of technicians
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+    post:
+      operationId: createTechnician
+      summary: Create a new technician account
+      description: |
+        Creates a Technician account. The system assigns the default password
+        (COLBO2026 or the value of the DEFAULT_TECHNICIAN_PASSWORD environment
+        variable). Supervisor only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTechnicianRequest'
+      responses:
+        '201':
+          description: Technician created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: Username already in use
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "Username 'juan.perez' is already taken."
+        '422':
+          description: Validation error
+
+  /technicians/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    get:
+      operationId: getTechnician
+      summary: Get a technician's profile
+      description: Supervisor only.
+      responses:
+        '200':
+          description: Technician profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      operationId: updateTechnician
+      summary: Update a technician's display name or username
+      description: Supervisor only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTechnicianRequest'
+      responses:
+        '200':
+          description: Updated technician profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Username already in use
+        '422':
+          description: Validation error
+
+    delete:
+      operationId: deleteTechnician
+      summary: Permanently delete a technician account
+      description: |
+        Permanently removes a Technician account from the system.
+        Rejected if the technician has any assigned work orders.
+        Cannot be applied to Supervisor accounts. Supervisor only.
+      responses:
+        '204':
+          description: Technician deleted successfully
+        '400':
+          description: Cannot delete a Supervisor account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "Supervisor accounts cannot be deleted."
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Technician has assigned work orders
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "No se puede eliminar un técnico con órdenes de trabajo asignadas."
+
+  /technicians/{id}/status:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    patch:
+      operationId: setTechnicianStatus
+      summary: Enable or disable a technician account
+      description: |
+        Sets the account status. Disabling immediately causes any active session for
+        that account to be rejected on the next API request. Supervisor only.
+        Cannot be applied to Supervisor accounts.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetStatusRequest'
+      responses:
+        '200':
+          description: Updated technician profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '400':
+          description: Cannot disable a Supervisor account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "Supervisor accounts cannot be disabled."
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid/expired token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            detail: "Not authenticated."
+    Forbidden:
+      description: Authenticated but insufficient role
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            detail: "Supervisor access required."
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            detail: "Technician not found."
+
+  schemas:
+    UserProfile:
+      type: object
+      required: [id, username, display_name, role, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+          example: "juan.perez"
+        display_name:
+          type: string
+          example: "Juan Pérez"
+        role:
+          type: string
+          enum: [supervisor, technician]
+        status:
+          type: string
+          enum: [active, disabled]
+
+    UpdateDisplayNameRequest:
+      type: object
+      required: [display_name]
+      properties:
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: "Juan Pérez"
+
+    ChangePasswordRequest:
+      type: object
+      required: [current_password, new_password]
+      properties:
+        current_password:
+          type: string
+          minLength: 1
+          example: "COLBO2026"
+        new_password:
+          type: string
+          minLength: 6
+          example: "MyNewPass123"
+
+    CreateTechnicianRequest:
+      type: object
+      required: [username, display_name]
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+          example: "juan.perez"
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: "Juan Pérez"
+
+    UpdateTechnicianRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+          example: "juan.perez2"
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: "Juan Pérez Actualizado"
+
+    SetStatusRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [active, disabled]
+          example: "disabled"
+
+    ErrorResponse:
+      type: object
+      required: [detail]
+      properties:
+        detail:
+          type: string

@@ -1,0 +1,524 @@
+openapi: 3.1.0
+info:
+  title: OT Management — Work Orders API
+  version: 1.0.0
+  description: |
+    Work Order lifecycle endpoints: creation, list, detail, and PM01 step closure
+    registration. All endpoints require a valid Bearer JWT token.
+
+    Role-based access:
+    - Supervisor: POST /work-orders, GET /work-orders (all shift), GET /work-orders/{id}
+    - Technician: GET /work-orders (own shift only), GET /work-orders/{id},
+                  POST /work-orders/{ot_id}/steps/{step_id}/closures
+
+servers:
+  - url: https://{host}/api/v1
+    variables:
+      host:
+        default: localhost:8000
+
+security:
+  - bearerAuth: []
+
+paths:
+
+  /work-orders:
+    post:
+      operationId: createWorkOrder
+      summary: Create a new Work Order
+      description: |
+        Creates a Work Order with the provided fields and custom step list.
+        The backend automatically prepends the 3 fixed PMNN safety steps before
+        the custom steps. The OT is created with status `released` and assigned to
+        the specified technician. Supervisor only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWorkOrderRequest'
+      responses:
+        '201':
+          description: Work Order created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkOrderDetail'
+        '400':
+          description: Business rule violation (e.g. no PM01 step in the list)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "At least one PM01 step is required."
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          description: Validation error (missing or invalid fields)
+
+    get:
+      operationId: listWorkOrders
+      summary: List Work Orders for the current shift
+      description: |
+        Returns Work Orders for the current server-computed shift.
+        - **Technician**: only OTs assigned to the authenticated Technician.
+        - **Supervisor**: all OTs for the current shift.
+        Available to both roles.
+      responses:
+        '200':
+          description: List of Work Orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WorkOrderSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /work-orders/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    get:
+      operationId: getWorkOrder
+      summary: Get full Work Order detail
+      description: |
+        Returns the full Work Order including all fields and the complete ordered
+        step list. Each step includes its closure data if registered.
+        Available to both roles; Technicians may only access OTs assigned to them.
+      responses:
+        '200':
+          description: Work Order detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkOrderDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Technician attempting to access an OT not assigned to them
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /work-orders/{ot_id}/steps/{step_id}/closures:
+    parameters:
+      - name: ot_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: step_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    post:
+      operationId: registerStepClosure
+      summary: Register a PM01 step closure
+      description: |
+        Registers a closure record for a PM01 step. The backend validates all four
+        fields and persists the closure. After persisting, the backend checks if all
+        PM01 steps in the OT now have valid closures. If so, the OT is atomically
+        transitioned to Notified with `notif_final` and `sin_ttbjo_real` set to true.
+
+        Technician only; only OTs assigned to the Technician are accessible.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterClosureRequest'
+      responses:
+        '201':
+          description: Closure registered; returns updated Work Order detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkOrderDetail'
+        '400':
+          description: |
+            Step is not a PM01 step, step already has a closure, or OT is not
+            assigned to this Technician.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: OT or step not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Step already has a closure (duplicate submission)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "This step already has a registered closure."
+        '422':
+          description: Validation error (missing or invalid closure fields)
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid/expired token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            detail: "Not authenticated."
+    Forbidden:
+      description: Authenticated but insufficient role or resource access
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            detail: "Access denied."
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            detail: "Work Order not found."
+
+  schemas:
+
+    # ── Request schemas ──────────────────────────────────────────────────────
+
+    CreateWorkOrderRequest:
+      type: object
+      required:
+        - order_type
+        - technical_location_id
+        - assigned_technician_id
+        - planner_group
+        - installation_state
+        - planned_start
+        - planned_end
+        - priority
+        - steps
+      properties:
+        order_type:
+          type: string
+          enum: [OE01, OE02, OE03, OE04]
+          example: "OE01"
+        technical_location_id:
+          type: string
+          format: uuid
+          example: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+        assigned_technician_id:
+          type: string
+          format: uuid
+        planner_group:
+          type: string
+          enum: [mechanical, electrical, electronic]
+          example: "mechanical"
+        installation_state:
+          type: string
+          enum: [running, stopped]
+          example: "running"
+        planned_start:
+          type: string
+          format: date
+          example: "2026-06-09"
+        planned_end:
+          type: string
+          format: date
+          example: "2026-06-09"
+        priority:
+          type: integer
+          enum: [1, 2, 3, 4]
+          description: "1=very high, 2=high, 3=medium, 4=low"
+          example: 2
+        steps:
+          type: array
+          description: |
+            Custom steps only (after the 3 fixed safety steps). Must include at
+            least one PM01 step.
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/CreateStepRequest'
+
+    CreateStepRequest:
+      type: object
+      required:
+        - description
+        - control_key
+      properties:
+        description:
+          type: string
+          minLength: 1
+          example: "Inspect motor bearings"
+        control_key:
+          type: string
+          enum: [PMNN, PM01]
+          example: "PM01"
+        planned_intervention_time:
+          type: number
+          format: double
+          minimum: 0.01
+          description: "Required when control_key is PM01. Unit: hours."
+          example: 2.5
+
+    RegisterClosureRequest:
+      type: object
+      required:
+        - actual_duration
+        - deviation_key
+        - work_description
+        - safety_question_response
+      properties:
+        actual_duration:
+          type: number
+          format: double
+          minimum: 0.01
+          description: "Actual time spent on this step, in hours."
+          example: 1.5
+        deviation_key:
+          type: string
+          enum: ["PM01 Executed", "PM01 Not Executed"]
+          example: "PM01 Executed"
+        work_description:
+          type: string
+          minLength: 1
+          description: "Free-text description of the work performed. No character limit."
+          example: "Replaced worn bearing on shaft 2. Equipment returned to service."
+        safety_question_response:
+          type: boolean
+          description: |
+            Answer to: 'Does the equipment carry a risk after this maintenance?'
+            true = Yes (risk exists), false = No (no risk).
+          example: false
+
+    # ── Response schemas ─────────────────────────────────────────────────────
+
+    WorkOrderSummary:
+      type: object
+      required:
+        - id
+        - order_type
+        - technical_location
+        - assigned_technician_id
+        - priority
+        - planned_start
+        - planned_end
+        - status
+        - shift_number
+      properties:
+        id:
+          type: string
+          format: uuid
+        order_type:
+          type: string
+          enum: [OE01, OE02, OE03, OE04]
+        technical_location:
+          $ref: '#/components/schemas/TechnicalLocationSummary'
+        assigned_technician_id:
+          type: string
+          format: uuid
+        priority:
+          type: integer
+          enum: [1, 2, 3, 4]
+        planned_start:
+          type: string
+          format: date
+        planned_end:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: [released, notified]
+        shift_number:
+          type: integer
+          enum: [1, 2, 3]
+
+    WorkOrderDetail:
+      type: object
+      required:
+        - id
+        - order_type
+        - technical_location
+        - assigned_technician_id
+        - created_by_id
+        - planner_group
+        - activity_class
+        - installation_state
+        - planned_start
+        - planned_end
+        - priority
+        - status
+        - notif_final
+        - sin_ttbjo_real
+        - shift_number
+        - steps
+      properties:
+        id:
+          type: string
+          format: uuid
+        order_type:
+          type: string
+          enum: [OE01, OE02, OE03, OE04]
+        technical_location:
+          $ref: '#/components/schemas/TechnicalLocationSummary'
+        assigned_technician_id:
+          type: string
+          format: uuid
+        created_by_id:
+          type: string
+          format: uuid
+        planner_group:
+          type: string
+          enum: [mechanical, electrical, electronic]
+        activity_class:
+          type: string
+          example: "plant machinery and equipment"
+        installation_state:
+          type: string
+          enum: [running, stopped]
+        planned_start:
+          type: string
+          format: date
+        planned_end:
+          type: string
+          format: date
+        priority:
+          type: integer
+          enum: [1, 2, 3, 4]
+        status:
+          type: string
+          enum: [released, notified]
+        notif_final:
+          type: boolean
+        sin_ttbjo_real:
+          type: boolean
+        shift_number:
+          type: integer
+          enum: [1, 2, 3]
+        created_at:
+          type: string
+          format: date-time
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/OTStepDetail'
+
+    OTStepDetail:
+      type: object
+      required:
+        - id
+        - position
+        - description
+        - control_key
+        - is_fixed
+      properties:
+        id:
+          type: string
+          format: uuid
+        position:
+          type: integer
+          minimum: 1
+        description:
+          type: string
+        control_key:
+          type: string
+          enum: [PMNN, PM01]
+        planned_intervention_time:
+          type: number
+          format: double
+          nullable: true
+          description: "Present only for PM01 steps. Unit: hours."
+        is_fixed:
+          type: boolean
+          description: "true for the 3 pre-populated safety steps."
+        closure:
+          nullable: true
+          description: |
+            Present only for PM01 steps that have been registered.
+            null for PMNN steps and unregistered PM01 steps.
+          allOf:
+            - $ref: '#/components/schemas/StepClosureDetail'
+
+    StepClosureDetail:
+      type: object
+      required:
+        - id
+        - actual_duration
+        - deviation_key
+        - work_description
+        - safety_question_response
+        - submitted_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        actual_duration:
+          type: number
+          format: double
+          description: "Hours"
+        deviation_key:
+          type: string
+          enum: ["PM01 Executed", "PM01 Not Executed"]
+        work_description:
+          type: string
+          description: "Full technician description; no truncation."
+        safety_question_response:
+          type: boolean
+          description: "true=Yes (risk), false=No (no risk)"
+        submitted_at:
+          type: string
+          format: date-time
+
+    TechnicalLocationSummary:
+      type: object
+      required: [id, sector, subsector, system, subsystem]
+      properties:
+        id:
+          type: string
+          format: uuid
+        sector:
+          type: string
+        subsector:
+          type: string
+        system:
+          type: string
+        subsystem:
+          type: string
+
+    ErrorResponse:
+      type: object
+      required: [detail]
+      properties:
+        detail:
+          type: string

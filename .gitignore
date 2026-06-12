@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+.env
+.env.*
+*.egg-info/
+dist/
+build/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# Alembic
+alembic/__pycache__/
+
+# Flutter / Dart
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/.packages
+mobile/build/
+mobile/android/.gradle/
+mobile/android/local.properties
+mobile/android/app/debug/
+mobile/android/app/profile/
+mobile/android/app/release/
+mobile/ios/.symlinks/
+mobile/ios/Pods/
+mobile/ios/Flutter/App.framework
+mobile/ios/Flutter/Flutter.framework
+mobile/ios/Flutter/Generated.xcconfig
+mobile/ios/Flutter/ephemeral/
+mobile/*.g.dart
+*.g.dart
+
+# IDE
+.vscode/
+.idea/
+*.iml
+*.suo
+*.user
+
+# OS
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
