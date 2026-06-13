@@ -7,6 +7,7 @@ import '../data/remote/api_client.dart';
 import '../data/remote/auth_repository_impl.dart';
 import '../data/remote/sync_service.dart';
 import '../data/remote/technical_location_repository_impl.dart';
+import '../data/remote/standardization_repository_impl.dart';
 import '../data/remote/user_repository_impl.dart';
 import '../data/remote/work_order_repository_impl.dart';
 import '../domain/models/technical_location.dart';
@@ -14,6 +15,7 @@ import '../domain/models/user.dart';
 import '../domain/models/work_order.dart';
 import '../presentation/viewmodels/auth_vm.dart';
 import '../presentation/viewmodels/closure_form_vm.dart';
+import '../presentation/viewmodels/standardization_vm.dart';
 import '../presentation/viewmodels/location_report_vm.dart';
 import '../presentation/viewmodels/profile_vm.dart';
 import '../presentation/viewmodels/supervisor_dashboard_vm.dart';
@@ -75,6 +77,9 @@ List<Override> get appProviderOverrides => [
           dao: ref.read(pendingClosureDaoProvider),
         ),
       ),
+      standardizationRepositoryProvider.overrideWith(
+        (ref) => StandardizationRepositoryImpl(apiClient: ref.read(apiClientProvider)),
+      ),
     ];
 
 // ─── ViewModels ───────────────────────────────────────────────────────────────
@@ -97,7 +102,7 @@ final technicianOtListProvider =
         TechnicianOtListNotifier.new);
 
 final workOrderDetailProvider =
-    AsyncNotifierProviderFamily<WorkOrderDetailNotifier, WorkOrder, String>(
+    AsyncNotifierProvider.autoDispose.family<WorkOrderDetailNotifier, WorkOrder, String>(
         WorkOrderDetailNotifier.new);
 
 final locationReportProvider =
@@ -106,6 +111,10 @@ final locationReportProvider =
 
 final closureFormProvider =
     NotifierProvider<ClosureFormNotifier, ClosureFormState>(ClosureFormNotifier.new);
+
+final standardizationNotifierProvider =
+    AsyncNotifierProvider.autoDispose<StandardizationNotifier, String?>(
+        StandardizationNotifier.new);
 
 // ─── Sync helpers ─────────────────────────────────────────────────────────────
 

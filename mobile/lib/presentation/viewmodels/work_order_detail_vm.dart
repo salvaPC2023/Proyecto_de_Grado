@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers.dart';
 import '../../domain/models/work_order.dart';
 
-class WorkOrderDetailNotifier extends FamilyAsyncNotifier<WorkOrder, String> {
+class WorkOrderDetailNotifier extends AutoDisposeFamilyAsyncNotifier<WorkOrder, String> {
   @override
   Future<WorkOrder> build(String id) =>
       ref.read(workOrderRepositoryProvider).getById(id);

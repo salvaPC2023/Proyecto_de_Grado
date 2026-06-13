@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     SUPERVISOR_USERNAME: str = "admin"
     SUPERVISOR_PASSWORD: str = "Admin2026"
     SERVER_TIMEZONE: str = "America/La_Paz"
+    OPENAI_API_KEY: str = ""
 
 
 settings = Settings()

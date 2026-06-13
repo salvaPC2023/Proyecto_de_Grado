@@ -1,0 +1,177 @@
+openapi: 3.1.0
+info:
+  title: LLM Description Standardization API
+  version: 1.0.0
+  description: |
+    Single endpoint that accepts a Technician's free-text PM01 work description and
+    returns a structured, normalized Spanish-language version produced by an LLM.
+
+    The endpoint is stateless — no OT or step context is required. The caller is
+    responsible for incorporating the returned text into the closure submission.
+
+    Role access:
+    - Technician: POST /descriptions/standardize
+    - Supervisor: POST /descriptions/standardize (may also standardize on behalf of review)
+
+servers:
+  - url: https://{host}/api/v1
+    variables:
+      host:
+        default: localhost:8000
+
+security:
+  - bearerAuth: []
+
+paths:
+
+  /descriptions/standardize:
+    post:
+      operationId: standardizeDescription
+      summary: Standardize a PM01 closure work description using an LLM
+      description: |
+        Sends the provided free-text description to the configured LLM (Anthropic Claude)
+        and returns a normalized version structured as:
+
+          Acción / Componente / Hallazgo / Resultado
+
+        The caller (mobile app) must display the result to the Technician for review before
+        using it in any closure submission. This endpoint does not create or modify any
+        database record.
+
+        **Error handling**:
+        - `503`: LLM service is unavailable or a quota limit was reached. The client MUST
+          allow submission with the original description.
+        - `504`: LLM call timed out (> 8 s). Treated the same as 503 on the client side.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StandardizationRequest'
+            example:
+              text: "cambie el rodamiento del eje 2 estaba muy desgastado y hacia ruido"
+      responses:
+        '200':
+          description: Standardized description returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardizationResponse'
+              example:
+                standardized_text: |
+                  Acción: Reemplazo de rodamiento
+                  Componente: Eje 2
+                  Hallazgo: Rodamiento con desgaste avanzado y generación de ruido anormal
+                  Resultado: Eje 2 operativo tras sustitución del rodamiento
+        '400':
+          description: Request body is invalid — `text` is empty or missing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "El campo 'text' no puede estar vacío."
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          description: Pydantic validation error (malformed JSON or wrong field types)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '503':
+          description: |
+            LLM service is unavailable or the request was rate-limited. The client must
+            display a non-blocking error and allow the Technician to submit the original
+            description without retrying unless explicitly requested by the user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "El servicio de estandarización no está disponible. Puede enviar su descripción original."
+        '504':
+          description: |
+            The LLM call timed out (exceeded the 8-second backend timeout). The client
+            treats this identically to 503 from a UX standpoint.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "El servicio de estandarización tardó demasiado. Puede enviar su descripción original."
+
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid Bearer token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            detail: "No autenticado."
+
+  schemas:
+
+    StandardizationRequest:
+      type: object
+      required:
+        - text
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 5000
+          description: The Technician's free-text work description to normalize
+          example: "cambie el rodamiento del eje 2 estaba muy desgastado y hacia ruido"
+
+    StandardizationResponse:
+      type: object
+      required:
+        - standardized_text
+      properties:
+        standardized_text:
+          type: string
+          minLength: 1
+          description: The normalized, structured description produced by the LLM
+          example: |
+            Acción: Reemplazo de rodamiento
+            Componente: Eje 2
+            Hallazgo: Rodamiento con desgaste avanzado y generación de ruido anormal
+            Resultado: Eje 2 operativo tras sustitución del rodamiento
+
+    ErrorResponse:
+      type: object
+      required:
+        - detail
+      properties:
+        detail:
+          type: string
+          description: Human-readable error message in Spanish
+
+    ValidationErrorResponse:
+      type: object
+      required:
+        - detail
+      properties:
+        detail:
+          type: array
+          items:
+            type: object
+            properties:
+              loc:
+                type: array
+                items:
+                  type: string
+              msg:
+                type: string
+              type:
+                type: string

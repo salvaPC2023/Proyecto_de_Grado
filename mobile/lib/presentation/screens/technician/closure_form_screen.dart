@@ -1,18 +1,39 @@
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants.dart';
 import '../../../core/di.dart';
+import '../../widgets/standardization_panel.dart';
 
-class ClosureFormScreen extends ConsumerWidget {
+class ClosureFormScreen extends ConsumerStatefulWidget {
   const ClosureFormScreen({super.key, required this.otId, required this.stepId});
   final String otId;
   final String stepId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ClosureFormScreen> createState() => _ClosureFormScreenState();
+}
+
+class _ClosureFormScreenState extends ConsumerState<ClosureFormScreen> {
+  final _workDescController = TextEditingController();
+
+  @override
+  void dispose() {
+    _workDescController.dispose();
+    super.dispose();
+  }
+
+  Future<bool> _isOnline() async {
+    final result = await Connectivity().checkConnectivity();
+    return result.any((c) => c != ConnectivityResult.none);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(closureFormProvider);
+    final stdState = ref.watch(standardizationNotifierProvider);
 
     ref.listen(closureFormProvider, (_, next) {
       if (next.result != null) {
@@ -21,9 +42,30 @@ class ClosureFormScreen extends ConsumerWidget {
             : 'Registrado exitosamente';
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(msg)));
+        if (!next.result!.isQueued) {
+          ref.invalidate(workOrderDetailProvider(widget.otId));
+        }
         context.pop();
       }
     });
+
+    ref.listen(standardizationNotifierProvider, (_, next) {
+      if (next is AsyncError) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(next.error.toString()),
+            action: SnackBarAction(
+              label: 'Reintentar',
+              onPressed: () => ref
+                  .read(standardizationNotifierProvider.notifier)
+                  .retry(_workDescController.text),
+            ),
+          ),
+        );
+      }
+    });
+
+    final workDescText = _workDescController.text;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Registrar cierre')),
@@ -75,6 +117,7 @@ class ClosureFormScreen extends ConsumerWidget {
 
           // Work description
           TextField(
+            controller: _workDescController,
             maxLines: null,
             keyboardType: TextInputType.multiline,
             decoration: InputDecoration(
@@ -83,11 +126,59 @@ class ClosureFormScreen extends ConsumerWidget {
               alignLabelWithHint: true,
               errorText: state.validationErrors['workDescription'],
             ),
-            onChanged: (v) => ref
-                .read(closureFormProvider.notifier)
-                .updateWorkDescription(v),
+            onChanged: (v) {
+              ref.read(closureFormProvider.notifier).updateWorkDescription(v);
+              setState(() {});
+            },
             enabled: !state.isSubmitting,
           ),
+          const SizedBox(height: 8),
+
+          // Standardize button — only shown when online and field is non-empty
+          FutureBuilder<bool>(
+            future: _isOnline(),
+            builder: (context, snapshot) {
+              final online = snapshot.data ?? false;
+              final canStandardize = online && workDescText.trim().isNotEmpty;
+              if (!online) return const SizedBox.shrink();
+              return Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: canStandardize && !stdState.isLoading
+                      ? () => ref
+                          .read(standardizationNotifierProvider.notifier)
+                          .standardize(_workDescController.text)
+                      : null,
+                  icon: stdState.isLoading
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.auto_fix_high, size: 18),
+                  label: const Text('Estandarizar descripción'),
+                ),
+              );
+            },
+          ),
+
+          // Standardization panel — shown when result is available
+          if (stdState is AsyncData<String?> && stdState.value != null)
+            StandardizationPanel(
+              initialText: stdState.value!,
+              onConfirm: (confirmed) {
+                _workDescController.text = confirmed;
+                ref
+                    .read(closureFormProvider.notifier)
+                    .updateWorkDescription(confirmed);
+                ref.read(standardizationNotifierProvider.notifier).reset();
+                setState(() {});
+              },
+              onKeepOriginal: () {
+                ref.read(standardizationNotifierProvider.notifier).reset();
+              },
+            ),
+
           const SizedBox(height: 16),
 
           // Safety question
@@ -136,7 +227,7 @@ class ClosureFormScreen extends ConsumerWidget {
                   ? null
                   : () => ref
                       .read(closureFormProvider.notifier)
-                      .submit(otId, stepId),
+                      .submit(widget.otId, widget.stepId),
               child: state.isSubmitting
                   ? const SizedBox(
                       width: 20,

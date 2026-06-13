@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import IntegrityError
 
-from src.adapters.inbound.routers import auth, shifts, technical_locations, users, work_orders
+from src.adapters.inbound.routers import auth, descriptions, shifts, technical_locations, users, work_orders
 from src.adapters.outbound.postgres.database import engine
 from src.domain.models.work_order import NoPm01StepError, OtNotAssignedError, StepAlreadyClosedError
 
@@ -55,6 +55,7 @@ async def ot_not_assigned_handler(request: Request, exc: OtNotAssignedError):
 
 
 app.include_router(auth.router, prefix="/api/v1")
+app.include_router(descriptions.router, prefix="/api/v1")
 app.include_router(users.router, prefix="/api/v1")
 app.include_router(shifts.router, prefix="/api/v1")
 app.include_router(technical_locations.router, prefix="/api/v1")
