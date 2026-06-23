@@ -28,7 +28,7 @@ def _build_engine():
         ctx.verify_mode = ssl.CERT_NONE
         connect_args["ssl"] = ctx
 
-    return create_async_engine(url, echo=False, connect_args=connect_args)
+    return create_async_engine(url, echo=False, pool_pre_ping=True, connect_args=connect_args)
 
 
 engine = _build_engine()

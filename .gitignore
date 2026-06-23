@@ -48,3 +48,6 @@ mobile/*.g.dart
 Thumbs.db
 *.tmp
 *.swp
+
+# Local documentation / diagrams
+docs/
