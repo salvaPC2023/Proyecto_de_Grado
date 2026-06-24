@@ -21,16 +21,16 @@ implementation. It is a run/test guide, not an implementation reference.
 ### Backend validation (curl)
 
 ```bash
-# 1. Login with seeded Supervisor account
+# 1. Login with a seeded Supervisor account
 curl -X POST http://localhost:8000/api/v1/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username": "admin", "password": "Admin2026"}'
+  -d '{"username": "fernando.salazar", "password": "Superv2026"}'
 # Expected: 200 with access_token + user.role = "supervisor"
 
 # 2. Login with wrong password
 curl -X POST http://localhost:8000/api/v1/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username": "admin", "password": "wrongpass"}'
+  -d '{"username": "fernando.salazar", "password": "wrongpass"}'
 # Expected: 401
 
 # 3. Access protected endpoint with token
@@ -150,15 +150,27 @@ curl -X PATCH http://localhost:8000/api/v1/technicians/$SUPERVISOR_ID/status \
   -H "Content-Type: application/json" \
   -d '{"status": "disabled"}'
 # Expected: 400 with "Supervisor accounts cannot be disabled"
+
+# 8. Supervisor isolation — other supervisor's technician returns 404
+TOKEN2="<JWT for gonzalo.orellana>"
+curl http://localhost:8000/api/v1/technicians/$TECH_ID \
+  -H "Authorization: Bearer $TOKEN2"
+# Expected: 404 (carlos.rios belongs to fernando.salazar, not gonzalo.orellana)
+
+# 9. List for second supervisor returns empty (no technicians created under them)
+curl http://localhost:8000/api/v1/technicians \
+  -H "Authorization: Bearer $TOKEN2"
+# Expected: 200 with empty array []
 ```
 
 ### Mobile validation
 
-1. Log in as Supervisor → view technician list → confirm carlos.rios is listed as Active.
+1. Log in as `fernando.salazar` → view technician list → confirm carlos.rios is listed as Active.
 2. Tap technician → edit display name → save → list reflects updated name.
 3. Tap "Disable" → confirm → technician status shows Disabled.
 4. On the Technician's device (if testing with two devices): next action redirects to login.
 5. Re-enable from Supervisor → Technician can log in again.
+6. Log out → log in as `gonzalo.orellana` → technician list is empty (isolation validated).
 
 ---
 

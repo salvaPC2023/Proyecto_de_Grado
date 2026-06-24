@@ -11,7 +11,7 @@ class UsernameAlreadyExistsError(Exception):
         self.username = username
 
 
-_USERNAME_RE = re.compile(r"^[a-z0-9_\-]{3,50}$")
+_USERNAME_RE = re.compile(r"^[a-z0-9_\-\.]{3,50}$")
 
 
 async def create_technician(

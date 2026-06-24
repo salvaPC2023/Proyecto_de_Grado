@@ -4,9 +4,11 @@
 
 **Created**: 2026-06-08
 
+**Updated**: 2026-06-24
+
 **Status**: Draft
 
-**Input**: User description: "User management module for a mobile maintenance app. Two roles exist: Supervisor and Technician. The Supervisor account is pre-loaded in the system. Supervisors can create technician accounts (with a default password COLBO2026), edit technician profile data, and disable technician accounts. Supervisors can also view a list of all technicians. Technicians can log in, view their own profile, and edit their own profile data (name, password) without a profile picture. Both roles can log out."
+**Input**: User description: "User management module for a mobile maintenance app. Two roles exist: Supervisor and Technician. Five Supervisor accounts are pre-loaded in the system (Fernando Augusto Salazar Montaño, Gonzalo Enrique Orellana Quispe, Iván Zenteno Blacutt, Consuelo Urquizu Alarcón, Eliana Sandóval Peredo). Each Supervisor is responsible for their own group of Technicians and can only see and manage the Technicians under their charge. Supervisors can create technician accounts (with a default password COLBO2026), edit technician profile data, and disable or re-enable technician accounts. A Technician belongs to exactly one Supervisor — the one who created the account. Technicians can log in, view their own profile, and edit their own profile data (name, password) without a profile picture. Both roles can log out."
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -19,9 +21,9 @@ time. Both roles can log out to end their session securely.
 **Why this priority**: All other features require an authenticated user. Without login,
 the app is inaccessible. This story is the foundational gate for every other module.
 
-**Independent Test**: Can be fully tested by logging in with the pre-loaded Supervisor
-account, verifying access to the home screen, closing and reopening the app to confirm
-session persistence, and then logging out.
+**Independent Test**: Can be fully tested by logging in with any of the five pre-loaded
+Supervisor accounts, verifying access to the home screen, closing and reopening the app to
+confirm session persistence, and then logging out.
 
 **Acceptance Scenarios**:
 
@@ -43,20 +45,23 @@ session persistence, and then logging out.
 ### User Story 2 - Supervisor Creates Technician Account (Priority: P2)
 
 A Supervisor creates a new technician account by providing profile information. The system
-assigns the default password COLBO2026. The technician can immediately log in with these
-credentials.
+assigns the default password COLBO2026 and automatically associates the new Technician
+with the creating Supervisor. The technician can immediately log in with these credentials.
 
 **Why this priority**: Technician accounts must exist before any operational feature
-(work order assignment, field work) can proceed. This story enables the technician roster.
+(work order assignment, field work) can proceed. This story enables the technician roster
+for each Supervisor group.
 
 **Independent Test**: Can be fully tested by creating a new technician account as a
-Supervisor, then logging in with the new credentials and the default password.
+Supervisor, then logging in with the new credentials and the default password. Verify that
+the new technician appears only in the creating Supervisor's roster and not in any other
+Supervisor's list.
 
 **Acceptance Scenarios**:
 
 1. **Given** a Supervisor on the create-technician screen, **When** they fill in all
    required fields and confirm, **Then** a new Technician account is created with the
-   default password COLBO2026 and status Active.
+   default password COLBO2026, status Active, and associated to the creating Supervisor.
 2. **Given** a newly created Technician account, **When** the technician logs in using
    the default password, **Then** access is granted.
 3. **Given** a Supervisor creating an account, **When** they omit a required field,
@@ -66,25 +71,28 @@ Supervisor, then logging in with the new credentials and the default password.
 
 ---
 
-### User Story 3 - Supervisor Manages Technician Roster (Priority: P3)
+### User Story 3 - Supervisor Manages Own Technician Roster (Priority: P3)
 
-A Supervisor can view the full list of all Technician accounts, navigate to an individual
-technician's profile, edit their profile data, and disable or re-enable their account.
-Disabled technicians are blocked from logging in and any active session is invalidated.
+A Supervisor can view the list of Technician accounts under their charge, navigate to an
+individual technician's profile, edit their profile data, and disable or re-enable their
+account. Disabled technicians are blocked from logging in and any active session is
+invalidated. A Supervisor cannot view or access technicians belonging to other Supervisors.
 
-**Why this priority**: Roster management is essential for keeping the technician list
-accurate and handling account lifecycle events such as new hires, data corrections, and
-departures.
+**Why this priority**: Roster management is essential for keeping each Supervisor's
+technician group accurate and handling account lifecycle events such as new hires, data
+corrections, and personnel changes.
 
-**Independent Test**: Can be fully tested by viewing the technician list, editing one
-technician's name, disabling one account and verifying that the technician cannot log in,
-then re-enabling the account and verifying login is restored.
+**Independent Test**: Can be fully tested by logging in as one Supervisor, viewing the
+technician list (confirming only own technicians appear), editing one technician's name,
+disabling one account and verifying the technician cannot log in, re-enabling the account
+and verifying login is restored. Log in as a different Supervisor and confirm the first
+Supervisor's technicians are not visible.
 
 **Acceptance Scenarios**:
 
 1. **Given** a Supervisor on the technician list screen, **When** the screen loads,
-   **Then** all Technician accounts are displayed with their name and status
-   (Active / Disabled).
+   **Then** only the Technician accounts associated with that Supervisor are displayed,
+   with their name and status (Active / Disabled).
 2. **Given** a Supervisor viewing a technician's profile, **When** they edit a profile
    field and save, **Then** the updated data is reflected immediately in the list and
    profile view.
@@ -97,14 +105,6 @@ then re-enabling the account and verifying login is restored.
    the account, **Then** the Technician can log in again.
 6. **Given** a Supervisor, **When** they attempt to disable a Supervisor account,
    **Then** the action is blocked with an appropriate message.
-7. **Given** a Supervisor on a Technician's profile that has no assigned work orders,
-   **When** they permanently delete the account and confirm, **Then** the account is
-   removed from the system and no longer appears in the technician list.
-8. **Given** a Supervisor attempting to delete a Technician account that has one or more
-   assigned work orders, **When** they confirm the action, **Then** the deletion is
-   rejected with a message indicating the account has linked work orders.
-9. **Given** a Supervisor, **When** they attempt to delete a Supervisor account, **Then**
-   the action is blocked with an appropriate message.
 
 ---
 
@@ -148,9 +148,9 @@ the new password is required for subsequent login.
 - What happens if the Supervisor tries to access the technician-management screens from a
   Technician-role account? Access is blocked — role checks are enforced on both client
   and server.
-- What happens when two Supervisors simultaneously edit the same Technician record?
-  Last-write-wins with a success confirmation; no optimistic-lock error is required in
-  this version.
+- What happens if a Supervisor attempts to access a Technician profile that does not
+  belong to their group? The action is blocked — the system must not expose any data
+  belonging to another Supervisor's roster, even via direct URL or API manipulation.
 
 ## Requirements *(mandatory)*
 
@@ -163,34 +163,39 @@ the new password is required for subsequent login.
   message.
 - **FR-004**: Supervisors MUST be able to create Technician accounts; the system MUST
   assign the password COLBO2026 automatically at creation.
-- **FR-005**: Supervisors MUST be able to view a list of all Technician accounts showing
-  name and status (Active / Disabled).
-- **FR-006**: Supervisors MUST be able to edit a Technician's display name and username.
-- **FR-007**: Supervisors MUST be able to disable and re-enable Technician accounts.
-- **FR-008**: Disabling a Technician account MUST immediately invalidate any active
+- **FR-005**: When a Supervisor creates a Technician account, the system MUST associate
+  that Technician with the creating Supervisor; this association MUST NOT change after
+  creation.
+- **FR-006**: Supervisors MUST only be able to view the Technician accounts associated
+  with their own group; Technicians from other Supervisors' groups MUST NOT be visible
+  or accessible.
+- **FR-007**: Supervisors MUST be able to edit a Technician's display name and username,
+  restricted to Technicians under their own charge.
+- **FR-008**: Supervisors MUST be able to disable and re-enable Technician accounts,
+  restricted to Technicians under their own charge.
+- **FR-009**: Disabling a Technician account MUST immediately invalidate any active
   session held by that account.
-- **FR-009**: Both roles MUST be able to view their own profile (display name, username).
-- **FR-010**: Both roles MUST be able to update their own display name.
-- **FR-011**: Both roles MUST be able to change their own password, with current password
+- **FR-010**: Both roles MUST be able to view their own profile (display name, username).
+- **FR-011**: Both roles MUST be able to update their own display name.
+- **FR-012**: Both roles MUST be able to change their own password, with current password
   required as confirmation.
-- **FR-012**: New passwords MUST be at least 6 characters long.
-- **FR-013**: Both roles MUST be able to log out, clearing their local session.
-- **FR-014**: Supervisors MUST NOT be able to disable Supervisor accounts through this
+- **FR-013**: New passwords MUST be at least 6 characters long.
+- **FR-014**: Both roles MUST be able to log out, clearing their local session.
+- **FR-015**: Supervisors MUST NOT be able to disable Supervisor accounts through this
   module.
-- **FR-015**: Username MUST be unique across all accounts in the system.
-- **FR-016**: Technicians MUST NOT be able to access Supervisor-only screens or perform
+- **FR-016**: Username MUST be unique across all accounts in the system.
+- **FR-017**: Technicians MUST NOT be able to access Supervisor-only screens or perform
   account-management actions.
-- **FR-017**: Supervisors MUST be able to permanently delete a Technician account that
-  has no assigned work orders.
-- **FR-018**: System MUST reject deletion of a Technician account that has one or more
-  assigned work orders, returning a clear error message.
-- **FR-019**: Supervisors MUST NOT be able to delete Supervisor accounts.
 
 ### Key Entities
 
 - **User Account**: Represents an authenticated system user. Attributes: username
   (unique, login identifier), display name, role (Supervisor | Technician), status
   (Active | Disabled).
+- **Supervisor–Technician Association**: A permanent link between a Technician account
+  and the Supervisor who created it. One Supervisor owns N Technicians; one Technician
+  belongs to exactly one Supervisor. This association is set at account creation and
+  cannot be changed.
 - **Session**: Represents an active authenticated context for a user. Invalidated on
   logout or when the associated account is disabled.
 - **Role**: Enumerated value (Supervisor | Technician) that governs accessible screens
@@ -202,8 +207,8 @@ the new password is required for subsequent login.
 
 - **SC-001**: A Supervisor can create a new Technician account and the technician can log
   in for the first time within 2 minutes end-to-end.
-- **SC-002**: The Supervisor technician-list loads all accounts within 3 seconds for a
-  roster of up to 200 technicians.
+- **SC-002**: The Supervisor technician-list loads all accounts under their charge within
+  3 seconds for a roster of up to 50 technicians per Supervisor.
 - **SC-003**: Disabling a Technician account takes effect within 5 seconds of the
   Supervisor confirming the action — the account cannot authenticate or continue an
   active session after that window.
@@ -211,13 +216,20 @@ the new password is required for subsequent login.
   valid, active session.
 - **SC-005**: 100% of Supervisor-only screens return an access-denied response when
   reached by a Technician-role session.
+- **SC-006**: 100% of Technician accounts belonging to Supervisor A are inaccessible
+  to Supervisor B, verified across list, profile, edit, and disable/enable actions.
 
 ## Assumptions
 
-- The Supervisor account is seeded at system initialization; no self-registration flow
-  exists.
-- Only one Supervisor account exists in the initial version; multi-supervisor support is
-  out of scope.
+- Five Supervisor accounts are seeded at system initialization with the following full
+  names: Fernando Augusto Salazar Montaño, Gonzalo Enrique Orellana Quispe, Iván
+  Zenteno Blacutt, Consuelo Urquizu Alarcón, and Eliana Sandóval Peredo. No
+  self-registration flow exists for Supervisors.
+- Each Supervisor manages an independent group of Technicians. A Technician belongs to
+  exactly one Supervisor — the one who created the account — and this assignment is
+  permanent.
+- Permanent deletion of Technician accounts is out of scope. The only account lifecycle
+  actions supported are creation, editing, disabling, and re-enabling.
 - Technician profile fields for both creation and Supervisor-edit are: display name and
   username. Additional fields (phone, employee ID, etc.) are out of scope for this
   feature.

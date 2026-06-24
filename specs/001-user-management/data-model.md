@@ -17,7 +17,7 @@ The sole entity in this module. Represents any authenticated system account.
 | `role` | VARCHAR(50) | NOT NULL | Immutable after creation; values: 'supervisor', 'technician' |
 | `status` | VARCHAR(50) | NOT NULL, DEFAULT 'active' | Supervisor-managed; values: 'active', 'disabled' |
 | `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT now() | |
-| `created_by_id` | UUID | FK → users.id, NULLABLE | NULL for the seeded Supervisor |
+| `created_by_id` | UUID | FK → users.id, NULLABLE | NULL for the 5 seeded Supervisors; references the creating Supervisor for Technician accounts; immutable after creation |
 
 **Indexes**:
 - `UNIQUE (username)` — enforces uniqueness for login lookups
@@ -38,27 +38,25 @@ The sole entity in this module. Represents any authenticated system account.
 
 ```
 User status:
-  active ──[Supervisor disables]──► disabled
-  disabled ──[Supervisor re-enables]──► active
+  active ──[Supervisor disables own technician]──► disabled
+  disabled ──[Supervisor re-enables own technician]──► active
 
-  Supervisor accounts: no transitions allowed (status always 'active' from API)
-
-User deletion:
-  active|disabled ──[Supervisor deletes, no work orders]──► permanently removed
-  active|disabled ──[Supervisor deletes, has work orders]──► rejected (409)
-  Supervisor accounts: deletion blocked (400)
+  Supervisor accounts: no status transitions allowed (status always 'active' from API)
+  Cross-supervisor operations: blocked — a Supervisor can only act on their own group
 ```
 
-### Seed Data (Alembic seed migration)
+### Seed Data (Alembic migration 001)
 
-```
-username:       admin          (or configurable via SUPERVISOR_USERNAME env var)
-display_name:   Supervisor
-role:           supervisor
-status:         active
-password_hash:  bcrypt(SUPERVISOR_PASSWORD env var, default: 'Admin2026')
-created_by_id:  NULL
-```
+Five Supervisor accounts are inserted at initialization. All share the same default
+password (`Superv2026`, configurable via `SUPERVISOR_PASSWORD` env var):
+
+| username | display_name | role | status | created_by_id |
+|---|---|---|---|---|
+| `fernando.salazar` | Fernando Salazar | supervisor | active | NULL |
+| `gonzalo.orellana` | Gonzalo Orellana | supervisor | active | NULL |
+| `ivan.zenteno` | Iván Zenteno | supervisor | active | NULL |
+| `consuelo.urquizu` | Consuelo Urquizu | supervisor | active | NULL |
+| `eliana.sandoval` | Eliana Sandóval | supervisor | active | NULL |
 
 The default Technician password `COLBO2026` is never stored directly; it is hashed at
 account creation time by the `create_technician` use case using the value of the

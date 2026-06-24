@@ -65,3 +65,25 @@ class WorkOrder {
         createdAt: json['created_at'] != null ? DateTime.parse(json['created_at'] as String) : null,
       );
 }
+
+class TechnicianWorkload {
+  const TechnicianWorkload({
+    required this.technicianId,
+    required this.technicianName,
+    required this.otCount,
+    required this.shiftNumber,
+  });
+
+  final String technicianId;
+  final String technicianName;
+  final int otCount;
+  final int shiftNumber;
+
+  factory TechnicianWorkload.fromJson(Map<String, dynamic> json) =>
+      TechnicianWorkload(
+        technicianId: json['technician_id'] as String,
+        technicianName: json['technician_name'] as String,
+        otCount: json['ot_count'] as int,
+        shiftNumber: json['shift_number'] as int,
+      );
+}

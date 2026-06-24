@@ -283,6 +283,48 @@ curl -s http://localhost:8000/api/v1/technical-locations/report \
 
 ---
 
+## Story 6 — Supervisor Views Technician Workload (P6)
+
+### Backend validation
+
+```bash
+# 1. Get the workload summary for the current shift
+curl -s http://localhost:8000/api/v1/work-orders/workload \
+  -H "Authorization: Bearer $SUPER_TOKEN" | jq .
+# Expected: array of objects; each has technician_id, technician_name, ot_count, shift_number
+# The technician used in Story 1 (carlos.rios) should appear with ot_count >= 1
+# Any technician with no OTs this shift appears with ot_count: 0
+# All entries have the same shift_number (current shift)
+
+# 2. Verify only the Supervisor's own technicians appear
+# (Technicians created by a different Supervisor must NOT be in the response)
+# If using a second Supervisor (e.g., gonzalo.orellana token), their workload
+# endpoint should return their own technicians only, not carlos.rios.
+
+# 3. Drill-down: get OTs for a specific technician
+curl -s "http://localhost:8000/api/v1/work-orders?technician_id=$TECH_ID" \
+  -H "Authorization: Bearer $SUPER_TOKEN" | jq .
+# Expected: list of OTs assigned to carlos.rios for the current shift (same as US2/US4
+# result filtered to this technician). Empty array if no OTs.
+
+# 4. Technician cannot access the workload endpoint
+curl -s http://localhost:8000/api/v1/work-orders/workload \
+  -H "Authorization: Bearer $TECH_TOKEN"
+# Expected: 403
+```
+
+### Mobile validation
+
+1. Log in as Supervisor → navigate to "Technician Workload" screen.
+2. Verify list shows all supervisor's technicians, each with their OT count badge.
+3. Verify that a technician with no OTs still appears with count 0 (not hidden).
+4. Tap a technician → drill-down screen shows only their OTs for the current shift with
+   order type, technical location, and status for each.
+5. Verify no create/edit actions are visible in the drill-down view.
+6. Navigate back to the workload list → state is preserved or refetched cleanly.
+
+---
+
 ## Contract References
 
 - Work Orders: [`contracts/work-orders.yaml`](contracts/work-orders.yaml)

@@ -180,6 +180,39 @@ descending order by OT count.
 
 ---
 
+### User Story 6 - Supervisor Views Technician Workload (Priority: P6)
+
+A Supervisor opens a workload view that lists all of their technicians, showing at a glance
+how many OTs each one has assigned in the current shift. Tapping a technician reveals the
+specific OTs assigned to them. This view is read-only.
+
+**Why this priority**: This view adds managerial visibility once OTs are being created
+(Stories 1–4 complete). It complements the flat shift OT list (US4) by grouping OTs
+per technician, helping the Supervisor spot imbalances or bottlenecks in workload
+distribution at a glance.
+
+**Independent Test**: Create OTs assigned to two different technicians under the same
+Supervisor, open the workload view, verify both technicians appear with their correct OT
+counts, tap one technician, and verify only their OTs are shown.
+
+**Acceptance Scenarios**:
+
+1. **Given** a Supervisor opening the workload view, **When** the list loads, **Then**
+   all technicians belonging to that Supervisor are listed, each showing their name and
+   the number of OTs assigned to them in the current shift.
+2. **Given** a technician with no OTs in the current shift, **When** the workload list
+   loads, **Then** that technician still appears in the list with a count of 0.
+3. **Given** a Supervisor tapping a technician in the workload list, **When** the detail
+   loads, **Then** only the OTs assigned to that specific technician in the current shift
+   are displayed with their order type, technical location, and status.
+4. **Given** a Supervisor viewing the technician OT detail from the workload view,
+   **When** they interact with it, **Then** no creation or modification actions are
+   available — the view is strictly read-only.
+5. **Given** a Supervisor whose technicians have no OTs at all, **When** the workload
+   view loads, **Then** all technicians are listed with count 0 and no error is shown.
+
+---
+
 ### Edge Cases
 
 - A Technician submits the final PM01 step while offline: the 'Notif. final' and
@@ -192,6 +225,8 @@ descending order by OT count.
   text must be readable without truncation in the Supervisor's detail view.
 - The OT has multiple PM01 steps and the Technician completes them in any order: the
   OT transitions to Notified only when all PM01 steps have valid closure records.
+- All of the Supervisor's technicians have zero OTs in the current shift: the workload
+  list renders normally with all technicians shown at count 0, no empty-state error.
 
 ## Requirements *(mandatory)*
 
@@ -270,6 +305,18 @@ descending order by OT count.
 - **FR-021**: Supervisors MUST be able to view a list of all technical locations sorted
   by registered OT count in descending order.
 
+**Technician Workload View**
+
+- **FR-023**: Supervisors MUST be able to view a list of all their own technicians, each
+  showing the number of OTs assigned to them in the current shift.
+- **FR-024**: Technicians with zero OTs in the current shift MUST appear in the list with
+  a count of 0.
+- **FR-025**: Supervisors MUST be able to tap a technician in the workload list to see the
+  OTs assigned to that technician for the current shift, displaying order type, technical
+  location, and current status for each OT.
+- **FR-026**: The technician workload view and its OT drill-down MUST be read-only — no
+  OT creation or modification actions are available.
+
 ### Key Entities
 
 - **Work Order (OT)**: Central entity. Attributes: order type (OE01–OE04), technical
@@ -307,6 +354,8 @@ descending order by OT count.
   restoration with zero data loss. *(post-launch KPI — no buildable verification task required for thesis scope)*
 - **SC-006**: No text field in any view truncates content — the full text of every
   description, technical location name, or work record is always readable.
+- **SC-007**: The technician workload list loads within 3 seconds and displays accurate
+  OT counts for all of the Supervisor's technicians.
 
 ## Assumptions
 

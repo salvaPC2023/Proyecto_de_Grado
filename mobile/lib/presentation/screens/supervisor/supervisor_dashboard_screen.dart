@@ -36,6 +36,11 @@ class _SupervisorDashboardScreenState
             tooltip: 'Reporte de ubicaciones',
           ),
           IconButton(
+            icon: const Icon(Icons.group_work),
+            onPressed: () => context.push('/supervisor/workload'),
+            tooltip: 'Carga de trabajo',
+          ),
+          IconButton(
             icon: const Icon(Icons.people),
             onPressed: () => context.push('/supervisor/technicians'),
             tooltip: 'Técnicos',

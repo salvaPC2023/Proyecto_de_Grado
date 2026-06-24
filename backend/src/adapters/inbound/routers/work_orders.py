@@ -1,7 +1,7 @@
 from datetime import date
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 
 from src.adapters.inbound.dependencies import get_current_user, require_supervisor
@@ -13,8 +13,10 @@ from src.domain.models.user import Role, User
 from src.domain.models.work_order import (
     NoPm01StepError, OtNotAssignedError, StepAlreadyClosedError, WorkOrder,
 )
+from src.domain.models.work_order import TechnicianWorkload
 from src.domain.use_cases.create_work_order import create_work_order
 from src.domain.use_cases.get_shift_work_orders import get_shift_work_orders
+from src.domain.use_cases.get_technician_workload import get_technician_workload
 from src.domain.use_cases.register_step_closure import register_step_closure
 
 router = APIRouter(prefix="/work-orders", tags=["work-orders"])
@@ -104,6 +106,13 @@ class RegisterClosureRequest(BaseModel):
     deviation_key: str
     work_description: str
     safety_question_response: bool
+
+
+class TechnicianWorkloadOut(BaseModel):
+    technician_id: str
+    technician_name: str
+    ot_count: int
+    shift_number: int
 
 
 def _loc_out(loc) -> TechnicalLocationOut:
@@ -203,13 +212,32 @@ async def create_work_order_endpoint(
     return _detail_out(ot)
 
 
+@router.get("/workload", response_model=list[TechnicianWorkloadOut])
+async def get_workload(
+    supervisor: User = Depends(require_supervisor),
+    session=Depends(get_session),
+):
+    wo_repo = PostgresWorkOrderRepository(session)
+    items = await get_technician_workload(supervisor, wo_repo)
+    return [
+        TechnicianWorkloadOut(
+            technician_id=str(item.technician_id),
+            technician_name=item.technician_name,
+            ot_count=item.ot_count,
+            shift_number=item.shift_number,
+        )
+        for item in items
+    ]
+
+
 @router.get("", response_model=list[WorkOrderSummaryOut])
 async def list_work_orders(
+    technician_id: UUID | None = Query(default=None),
     current_user: User = Depends(get_current_user),
     session=Depends(get_session),
 ):
     wo_repo = PostgresWorkOrderRepository(session)
-    ots = await get_shift_work_orders(current_user, wo_repo)
+    ots = await get_shift_work_orders(current_user, wo_repo, technician_id=technician_id)
     return [_summary_out(ot) for ot in ots]
 
 

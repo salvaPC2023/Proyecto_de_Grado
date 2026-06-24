@@ -1,10 +1,10 @@
 from abc import ABC, abstractmethod
 from uuid import UUID
 
-from ..models.user import User, Role, UserStatus
+from ..models.user import User, UserStatus
 
 
-class TechnicianHasWorkOrdersError(Exception):
+class TechnicianNotFoundError(Exception):
     pass
 
 
@@ -32,7 +32,7 @@ class UserRepository(ABC):
     async def set_status(self, user_id: UUID, status: UserStatus) -> User: ...
 
     @abstractmethod
-    async def list_technicians(self) -> list[User]: ...
+    async def list_by_supervisor(self, supervisor_id: UUID) -> list[User]: ...
 
     @abstractmethod
-    async def delete(self, user_id: UUID) -> None: ...
+    async def get_by_id_and_supervisor(self, tech_id: UUID, supervisor_id: UUID) -> User | None: ...

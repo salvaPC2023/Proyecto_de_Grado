@@ -98,8 +98,10 @@ paths:
   /technicians:
     get:
       operationId: listTechnicians
-      summary: List all technician accounts
-      description: Returns all technician accounts with name and status. Supervisor only.
+      summary: List own technician accounts
+      description: |
+        Returns technician accounts belonging to the authenticated Supervisor's group.
+        Technicians from other Supervisors are never included. Supervisor only.
       responses:
         '200':
           description: List of technicians
@@ -161,7 +163,9 @@ paths:
     get:
       operationId: getTechnician
       summary: Get a technician's profile
-      description: Supervisor only.
+      description: |
+        Returns the technician's profile. Supervisor only. Returns 404 if the
+        technician does not exist or does not belong to the requesting Supervisor.
       responses:
         '200':
           description: Technician profile
@@ -179,7 +183,9 @@ paths:
     patch:
       operationId: updateTechnician
       summary: Update a technician's display name or username
-      description: Supervisor only.
+      description: |
+        Supervisor only. Returns 404 if the technician does not exist or does not
+        belong to the requesting Supervisor.
       requestBody:
         required: true
         content:
@@ -204,39 +210,6 @@ paths:
         '422':
           description: Validation error
 
-    delete:
-      operationId: deleteTechnician
-      summary: Permanently delete a technician account
-      description: |
-        Permanently removes a Technician account from the system.
-        Rejected if the technician has any assigned work orders.
-        Cannot be applied to Supervisor accounts. Supervisor only.
-      responses:
-        '204':
-          description: Technician deleted successfully
-        '400':
-          description: Cannot delete a Supervisor account
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-              example:
-                detail: "Supervisor accounts cannot be deleted."
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          description: Technician has assigned work orders
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-              example:
-                detail: "No se puede eliminar un técnico con órdenes de trabajo asignadas."
-
   /technicians/{id}/status:
     parameters:
       - name: id
@@ -251,7 +224,8 @@ paths:
       description: |
         Sets the account status. Disabling immediately causes any active session for
         that account to be rejected on the next API request. Supervisor only.
-        Cannot be applied to Supervisor accounts.
+        Cannot be applied to Supervisor accounts. Returns 404 if the technician does
+        not exist or does not belong to the requesting Supervisor.
       requestBody:
         required: true
         content:

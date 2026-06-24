@@ -7,14 +7,14 @@ from sqlalchemy.orm import selectinload
 from src.domain.models.technical_location import TechnicalLocation
 from src.domain.models.work_order import (
     ControlKey, DeviationKey, InstallationState, OrderType, OTStep,
-    PlannerGroup, StepClosure, WorkOrder, WorkOrderStatus,
+    PlannerGroup, StepClosure, TechnicianWorkload, WorkOrder, WorkOrderStatus,
 )
 from src.domain.ports.technical_location_repository import (
     TechnicalLocationReportEntry, TechnicalLocationRepository,
 )
 from src.domain.ports.work_order_repository import WorkOrderRepository
 from .orm_models import (
-    OTStepORM, StepClosureORM, TechnicalLocationORM, WorkOrderORM,
+    OTStepORM, StepClosureORM, TechnicalLocationORM, UserORM, WorkOrderORM,
 )
 
 
@@ -141,13 +141,44 @@ class PostgresWorkOrderRepository(WorkOrderRepository):
         )
         return [_ot_to_domain(r) for r in result.scalars().all()]
 
-    async def list_for_supervisor_shift(self, shift_number: int) -> list[WorkOrder]:
-        result = await self._session.execute(
-            _ot_query()
-            .where(WorkOrderORM.shift_number == shift_number)
-            .order_by(WorkOrderORM.created_at.desc())
-        )
+    async def list_for_supervisor_shift(
+        self, shift_number: int, technician_id: UUID | None = None
+    ) -> list[WorkOrder]:
+        q = _ot_query().where(WorkOrderORM.shift_number == shift_number)
+        if technician_id is not None:
+            q = q.where(WorkOrderORM.assigned_technician_id == technician_id)
+        result = await self._session.execute(q.order_by(WorkOrderORM.created_at.desc()))
         return [_ot_to_domain(r) for r in result.scalars().all()]
+
+    async def get_workload_by_supervisor(
+        self, supervisor_id: UUID, shift_number: int
+    ) -> list[TechnicianWorkload]:
+        result = await self._session.execute(
+            select(
+                UserORM.id.label("technician_id"),
+                UserORM.display_name.label("technician_name"),
+                func.count(WorkOrderORM.id).label("ot_count"),
+            )
+            .select_from(UserORM)
+            .outerjoin(
+                WorkOrderORM,
+                (WorkOrderORM.assigned_technician_id == UserORM.id)
+                & (WorkOrderORM.shift_number == shift_number),
+            )
+            .where(UserORM.created_by_id == supervisor_id)
+            .where(UserORM.role == "technician")
+            .group_by(UserORM.id, UserORM.display_name)
+            .order_by(func.count(WorkOrderORM.id).desc(), UserORM.display_name.asc())
+        )
+        return [
+            TechnicianWorkload(
+                technician_id=row.technician_id,
+                technician_name=row.technician_name,
+                ot_count=row.ot_count,
+                shift_number=shift_number,
+            )
+            for row in result.all()
+        ]
 
     async def count_unregistered_pm01_steps(self, ot_id: UUID) -> int:
         result = await self._session.execute(

@@ -236,6 +236,14 @@ system:    String
 subsystem: String
 ```
 
+**`TechnicianWorkload`** (US6 — read-only aggregation, never cached locally)
+```
+technicianId:    String (UUID)
+technicianName:  String
+otCount:         int (≥ 0)
+shiftNumber:     int (1–3)
+```
+
 **`PendingClosure`** (mirrors Drift pending_closures row)
 ```
 id:                      int
@@ -283,6 +291,13 @@ errorMessage:            String?
 | `AsyncData(list)` | Shift list loaded |
 | `AsyncError` | Network error |
 
+**`TechnicianWorkloadState`** (`AsyncNotifier<List<TechnicianWorkload>>`) — US6
+| State | Meaning |
+|-------|---------|
+| `AsyncLoading` | Fetching workload summary |
+| `AsyncData(list)` | All supervisor's technicians loaded with OT counts (includes otCount=0) |
+| `AsyncError` | Network error |
+
 ---
 
 ## API ↔ Mobile Mapping
@@ -300,3 +315,6 @@ errorMessage:            String?
 | `safety_question_response` | `safetyQuestionResponse` | bool |
 | `notif_final` | — | not shown in mobile UI; inferred from status |
 | `sin_ttbjo_real` | — | not shown in mobile UI; inferred from status |
+| `technician_id` | `technicianId` | US6 workload item: UUID of the technician |
+| `technician_name` | `technicianName` | US6 workload item: display name |
+| `ot_count` | `otCount` | US6 workload item: OT count for current shift |

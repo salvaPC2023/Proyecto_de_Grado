@@ -4,8 +4,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domain.models.user import Role, User, UserStatus
-from src.domain.ports.user_repository import TechnicianHasWorkOrdersError, UserRepository
-from .orm_models import UserORM, WorkOrderORM
+from src.domain.ports.user_repository import UserRepository
+from .orm_models import UserORM
 
 
 def _to_domain(row: UserORM) -> User:
@@ -76,21 +76,20 @@ class PostgresUserRepository(UserRepository):
         await self._session.flush()
         return _to_domain(row)
 
-    async def list_technicians(self) -> list[User]:
+    async def list_by_supervisor(self, supervisor_id: UUID) -> list[User]:
         result = await self._session.execute(
-            select(UserORM).where(UserORM.role == Role.technician.value).order_by(UserORM.display_name)
+            select(UserORM)
+            .where(UserORM.role == Role.technician.value)
+            .where(UserORM.created_by_id == supervisor_id)
+            .order_by(UserORM.display_name)
         )
         return [_to_domain(r) for r in result.scalars().all()]
 
-    async def delete(self, user_id: UUID) -> None:
-        has_ots = await self._session.execute(
-            select(WorkOrderORM.id)
-            .where(WorkOrderORM.assigned_technician_id == user_id)
-            .limit(1)
+    async def get_by_id_and_supervisor(self, tech_id: UUID, supervisor_id: UUID) -> User | None:
+        result = await self._session.execute(
+            select(UserORM)
+            .where(UserORM.id == tech_id)
+            .where(UserORM.created_by_id == supervisor_id)
         )
-        if has_ots.scalar_one_or_none() is not None:
-            raise TechnicianHasWorkOrdersError()
-        row = await self._session.get(UserORM, user_id)
-        if row:
-            await self._session.delete(row)
-            await self._session.flush()
+        row = result.scalar_one_or_none()
+        return _to_domain(row) if row else None
