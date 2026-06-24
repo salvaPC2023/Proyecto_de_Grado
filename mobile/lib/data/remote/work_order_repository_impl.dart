@@ -50,6 +50,27 @@ class WorkOrderRepositoryImpl implements WorkOrderRepository {
     return WorkOrder.fromJson(res.data as Map<String, dynamic>);
   }
 
+  @override
+  Future<List<TechnicianWorkload>> getWorkload() async {
+    final res = await apiClient.dio.get('/work-orders/workload');
+    final list = res.data as List<dynamic>;
+    return list
+        .map((e) => TechnicianWorkload.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  @override
+  Future<List<WorkOrder>> listForTechnicianInShift(String technicianId) async {
+    final res = await apiClient.dio.get(
+      '/work-orders',
+      queryParameters: {'technician_id': technicianId},
+    );
+    final list = res.data as List<dynamic>;
+    return list
+        .map((e) => WorkOrder.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
   Future<void> _cacheOrders(List<WorkOrder> orders) async {
     final now = DateTime.now().millisecondsSinceEpoch;
     final rows = orders
@@ -82,7 +103,7 @@ class WorkOrderRepositoryImpl implements WorkOrderRepository {
     final parts = row.technicalLocationLabel.split(' / ');
     final location = TechnicalLocation(
       id: row.technicalLocationId,
-      sector: parts.length > 0 ? parts[0] : row.technicalLocationLabel,
+      sector: parts.isNotEmpty ? parts[0] : row.technicalLocationLabel,
       subsector: parts.length > 1 ? parts[1] : '',
       system: parts.length > 2 ? parts[2] : '',
       subsystem: parts.length > 3 ? parts[3] : '',

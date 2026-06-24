@@ -19,6 +19,7 @@ import '../presentation/viewmodels/profile_vm.dart';
 import '../presentation/viewmodels/supervisor_dashboard_vm.dart';
 import '../presentation/viewmodels/technician_list_vm.dart';
 import '../presentation/viewmodels/technician_ot_list_vm.dart';
+import '../presentation/viewmodels/technician_workload_vm.dart';
 import '../presentation/viewmodels/work_order_detail_vm.dart';
 import 'providers.dart';
 import 'router.dart';
@@ -106,6 +107,15 @@ final locationReportProvider =
 
 final closureFormProvider =
     NotifierProvider<ClosureFormNotifier, ClosureFormState>(ClosureFormNotifier.new);
+
+final technicianWorkloadProvider =
+    AsyncNotifierProvider<TechnicianWorkloadNotifier, List<TechnicianWorkload>>(
+        TechnicianWorkloadNotifier.new);
+
+final workloadDrilldownProvider =
+    FutureProvider.family<List<WorkOrder>, String>((ref, technicianId) async {
+  return ref.read(workOrderRepositoryProvider).listForTechnicianInShift(technicianId);
+});
 
 // ─── Sync helpers ─────────────────────────────────────────────────────────────
 

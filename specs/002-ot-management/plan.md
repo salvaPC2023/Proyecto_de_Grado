@@ -13,7 +13,9 @@ shift. Technicians register PM01 step closures (actual duration, deviation key,
 description, safety question) with offline queuing via Drift/SQLite. An OT transitions
 from Released → Notified once all PM01 steps carry valid closures and the backend
 confirms the `Notif. final` + `Sin ttbjo. real` flags. Supervisors monitor their shift's
-OTs in real time and access a technical location report ranked by OT count.
+OTs in real time, access a technical location report ranked by OT count, and view a
+per-technician workload summary showing each technician's OT count for the active shift
+with drill-down to their specific OTs (read-only).
 
 ## Technical Context
 
@@ -61,7 +63,7 @@ OTs in real time and access a technical location report ranked by OT count.
 | I. API-First | ✅ PASS | OpenAPI 3.1 contracts in `contracts/` authored before implementation |
 | II. Documentation-Driven | ✅ PASS | spec.md validated; plan.md, data-model.md, contracts/, quickstart.md produced here |
 | III. Hexagonal Architecture | ✅ PASS | Backend: domain core has no FastAPI/SQLAlchemy imports; shift logic is pure domain computation; outbound adapters for PostgreSQL. Mobile: MVVM+Riverpod; Repository abstracts Drift + FastAPI |
-| IV. Incremental Delivery | ✅ PASS | 5 user stories (P1–P5), each independently demonstrable; P1 (OT creation) is the first working MVP gate |
+| IV. Incremental Delivery | ✅ PASS | 6 user stories (P1–P6), each independently demonstrable; P1 (OT creation) is the first working MVP gate; US6 adds no new entities — purely a read-only aggregation over existing data |
 | V. Simplicity | ✅ PASS | Shifts: 3 hardcoded time windows, no management UI; OT status: computed field updated on closure submission, no state machine library; technical location tree: flat table with 4 fixed-depth columns |
 
 No violations — Complexity Tracking section not required.
@@ -103,7 +105,8 @@ backend/
 │   │       ├── create_work_order.py
 │   │       ├── register_step_closure.py
 │   │       ├── get_shift_work_orders.py
-│   │       └── get_location_report.py
+│   │       ├── get_location_report.py
+│   │       └── get_technician_workload.py   # US6: OT counts per technician for current shift
 │   ├── adapters/
 │   │   ├── inbound/
 │   │   │   └── routers/
@@ -153,7 +156,8 @@ mobile/
 │       │   ├── technician_ot_list_vm.dart
 │       │   ├── work_order_detail_vm.dart
 │       │   ├── closure_form_vm.dart
-│       │   └── supervisor_dashboard_vm.dart
+│       │   ├── supervisor_dashboard_vm.dart
+│       │   └── technician_workload_vm.dart      # US6
 │       └── screens/
 │           ├── technician/
 │           │   ├── ot_list_screen.dart
@@ -161,7 +165,8 @@ mobile/
 │           │   └── closure_form_screen.dart
 │           └── supervisor/
 │               ├── supervisor_dashboard_screen.dart
-│               └── location_report_screen.dart
+│               ├── location_report_screen.dart
+│               └── technician_workload_screen.dart  # US6
 └── test/
     ├── unit/
     └── widget/

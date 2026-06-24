@@ -8,6 +8,7 @@ import '../presentation/screens/supervisor/create_technician_screen.dart';
 import '../presentation/screens/supervisor/create_work_order_screen.dart';
 import '../presentation/screens/supervisor/location_report_screen.dart';
 import '../presentation/screens/supervisor/supervisor_dashboard_screen.dart';
+import '../presentation/screens/supervisor/technician_workload_screen.dart';
 import '../presentation/screens/supervisor/technician_detail_screen.dart';
 import '../presentation/screens/supervisor/technician_list_screen.dart';
 import '../presentation/screens/technician/closure_form_screen.dart';
@@ -81,6 +82,15 @@ class AppRouter {
         GoRoute(
             path: '/supervisor/location-report',
             builder: (_, __) => const LocationReportScreen()),
+        GoRoute(
+            path: '/supervisor/workload',
+            builder: (_, __) => const TechnicianWorkloadScreen()),
+        GoRoute(
+            path: '/supervisor/workload/:technician_id/ots',
+            builder: (_, state) => WorkloadOtListScreen(
+                  technicianId: state.pathParameters['technician_id']!,
+                  technicianName: (state.extra as String?) ?? '',
+                )),
 
         // Technician routes
         GoRoute(path: '/technician/ots', builder: (_, __) => const OtListScreen()),

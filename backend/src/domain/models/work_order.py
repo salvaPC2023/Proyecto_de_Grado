@@ -83,6 +83,14 @@ class WorkOrder:
     steps: list[OTStep] = field(default_factory=list)
 
 
+@dataclass
+class TechnicianWorkload:
+    technician_id: UUID
+    technician_name: str
+    ot_count: int
+    shift_number: int
+
+
 class NoPm01StepError(Exception):
     pass
 

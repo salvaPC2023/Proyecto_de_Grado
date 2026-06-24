@@ -7,7 +7,8 @@ info:
     registration. All endpoints require a valid Bearer JWT token.
 
     Role-based access:
-    - Supervisor: POST /work-orders, GET /work-orders (all shift), GET /work-orders/{id}
+    - Supervisor: POST /work-orders, GET /work-orders (all shift or filtered by technician),
+                  GET /work-orders/{id}, GET /work-orders/workload
     - Technician: GET /work-orders (own shift only), GET /work-orders/{id},
                   POST /work-orders/{ot_id}/steps/{step_id}/closures
 
@@ -65,8 +66,19 @@ paths:
       description: |
         Returns Work Orders for the current server-computed shift.
         - **Technician**: only OTs assigned to the authenticated Technician.
-        - **Supervisor**: all OTs for the current shift.
+        - **Supervisor**: all OTs for the current shift. Optionally filter by
+          `technician_id` to see only OTs for a specific technician (US6 drill-down).
         Available to both roles.
+      parameters:
+        - name: technician_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: |
+            Supervisor only. Filter results to OTs assigned to the specified technician
+            in the current shift. Ignored for Technician role.
       responses:
         '200':
           description: List of Work Orders
@@ -78,6 +90,42 @@ paths:
                   $ref: '#/components/schemas/WorkOrderSummary'
         '401':
           $ref: '#/components/responses/Unauthorized'
+
+  /work-orders/workload:
+    get:
+      operationId: getTechnicianWorkload
+      summary: Technician workload summary for the current shift (Supervisor only)
+      description: |
+        Returns one entry per technician belonging to the authenticated Supervisor,
+        each with the count of OTs assigned to that technician in the current shift.
+        Technicians with zero OTs in the current shift are included with `ot_count: 0`.
+        This endpoint is read-only and does not support modification.
+      responses:
+        '200':
+          description: Workload summary for all supervisor's technicians
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TechnicianWorkloadItem'
+              example:
+                - technician_id: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                  technician_name: "Carlos Ríos"
+                  ot_count: 3
+                  shift_number: 2
+                - technician_id: "9cb74a11-2de8-4a91-b3cd-1e847f99bbc2"
+                  technician_name: "Ana Torres"
+                  ot_count: 0
+                  shift_number: 2
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Technician attempting to access this Supervisor-only endpoint
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /work-orders/{id}:
     parameters:
@@ -515,6 +563,32 @@ components:
           type: string
         subsystem:
           type: string
+
+    TechnicianWorkloadItem:
+      type: object
+      required:
+        - technician_id
+        - technician_name
+        - ot_count
+        - shift_number
+      properties:
+        technician_id:
+          type: string
+          format: uuid
+          description: "UUID of the technician"
+        technician_name:
+          type: string
+          description: "Display name of the technician"
+          example: "Carlos Ríos"
+        ot_count:
+          type: integer
+          minimum: 0
+          description: "Number of OTs assigned to this technician in the current shift"
+          example: 3
+        shift_number:
+          type: integer
+          enum: [1, 2, 3]
+          description: "The shift number for which the count applies"
 
     ErrorResponse:
       type: object

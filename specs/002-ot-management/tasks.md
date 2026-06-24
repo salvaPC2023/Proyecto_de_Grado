@@ -17,7 +17,7 @@ and verified. This feature reuses the backend project skeleton, Alembic config, 
 ## Format: `[ID] [P?] [Story?] Description`
 
 - **[P]**: Can run in parallel (different files, no shared dependencies)
-- **[Story]**: Which user story this task belongs to (US1–US5)
+- **[Story]**: Which user story this task belongs to (US1–US6)
 - All descriptions include exact file paths
 
 ---
@@ -194,6 +194,40 @@ different locations, report is sorted correctly; count increments after new OT c
 
 ---
 
+## Phase 8: User Story 6 — Supervisor Views Technician Workload (Priority: P6)
+
+**Goal**: Supervisor opens a workload view showing all their technicians with OT count for
+the current shift. Tapping a technician shows only their OTs. Technicians with 0 OTs appear.
+Read-only — no create/modify actions visible.
+
+**Independent Test**: See `quickstart.md` Story 6 section — verify workload list shows all
+supervisor's technicians (including 0-count ones), drill-down shows only that technician's OTs,
+Technician role gets 403 on the workload endpoint.
+
+**Note**: No new DB tables or Drift local tables needed — US6 is a pure read-only aggregation
+over existing `work_orders` and `users` data. The `?technician_id` filter reuses the existing
+list endpoint.
+
+### Backend — US6
+
+- [X] T060 [US6] Add `get_workload_by_supervisor(supervisor_id, current_shift) -> List[TechnicianWorkload]` abstract method to `WorkOrderRepository` port in `backend/src/domain/ports/work_order_repository.py`; implement in `PostgresWorkOrderRepository` in `backend/src/adapters/outbound/postgres/repositories.py`: LEFT JOIN `work_orders` (shift_number = current_shift) onto `users` WHERE `users.created_by_id = supervisor_id AND users.role = 'technician'`, GROUP BY `users.id`, `users.display_name`, COUNT OT rows (0 for technicians with no OTs); return list ordered by `ot_count DESC, display_name ASC`
+- [X] T061 [US6] Implement `get_technician_workload` use case: call `get_current_shift` to get active shift, call `work_order_repo.get_workload_by_supervisor(supervisor.id, shift)`, return `List[TechnicianWorkload]` in `backend/src/domain/use_cases/get_technician_workload.py`
+- [X] T062 [US6] Add `GET /api/v1/work-orders/workload` endpoint in `backend/src/adapters/inbound/routers/work_orders.py` (Supervisor only via `require_supervisor` dependency) calling `get_technician_workload` use case; return `List[TechnicianWorkloadItem]`; **IMPORTANT**: register this route BEFORE the `/{id}` route to avoid FastAPI routing conflict
+- [X] T063 [US6] Add optional `technician_id: UUID | None = Query(default=None)` parameter to `GET /api/v1/work-orders` in `backend/src/adapters/inbound/routers/work_orders.py`; when provided and role=Supervisor, pass it to `get_shift_work_orders` use case which filters results to OTs assigned to that specific technician; Technician role ignores the parameter
+
+### Mobile — US6
+
+- [X] T064 [P] [US6] Add `TechnicianWorkloadItemDto` Dart class with `fromJson` factory (fields: `technician_id`, `technician_name`, `ot_count`, `shift_number`) in `mobile/lib/data/remote/dtos/work_order_dto.dart`; add `TechnicianWorkload` domain model (fields: `technicianId`, `technicianName`, `otCount`, `shiftNumber`) in `mobile/lib/domain/models/work_order.dart`
+- [X] T065 [US6] Add `getWorkload()` to abstract `WorkOrderRepository` interface in `mobile/lib/domain/repositories/work_order_repository.dart`; implement in `WorkOrderRepositoryImpl` in `mobile/lib/data/remote/work_order_repository_impl.dart`: call `GET /api/v1/work-orders/workload` via Dio, parse `List<TechnicianWorkloadItemDto>`, map to `List<TechnicianWorkload>`
+- [X] T066 [US6] Implement `TechnicianWorkloadNotifier` as `AsyncNotifier<List<TechnicianWorkload>>` with `loadWorkload()` method in `mobile/lib/presentation/viewmodels/technician_workload_vm.dart`
+- [X] T067 [US6] Create `TechnicianWorkloadScreen` in `mobile/lib/presentation/screens/supervisor/technician_workload_screen.dart`: list of technician cards showing `technicianName` and `otCount` badge (grey badge for 0, coloured for > 0); tap on card navigates to filtered OT list (reuse `OtListScreen` or inline list using `GET /api/v1/work-orders?technician_id={id}` via `WorkOrderRepositoryImpl.listForShift(technicianId: id)`); NO create/edit actions in this view; loading state; empty state ("No tienes técnicos registrados") if list is empty
+- [X] T068 [US6] Add `/supervisor/workload` and `/supervisor/workload/:technician_id/ots` routes to go_router (Supervisor only) in `mobile/lib/core/router.dart`; add `technicianWorkloadProvider` to `mobile/lib/core/di.dart`; add "Carga de Trabajo" navigation entry in supervisor navigation (drawer or bottom nav)
+- [ ] T069 [US6] Run Story 6 validation scenarios from `specs/002-ot-management/quickstart.md` end-to-end: workload endpoint returns all supervisor's technicians including 0-count ones, drill-down shows correct filtered OTs, Technician role receives 403 on workload endpoint
+
+**Checkpoint**: US6 complete — all 6 user stories demonstrable end-to-end
+
+---
+
 ## Phase N: Polish & Cross-Cutting Concerns
 
 **Purpose**: Hardening applicable across all stories
@@ -219,6 +253,7 @@ different locations, report is sorted correctly; count increments after new OT c
 - **US3 (Phase 5)**: Depends on US2 (Technician must view OT detail before registering closure)
 - **US4 (Phase 6)**: Depends on Foundational; backend already done in US2; mobile needs US1 screen pattern
 - **US5 (Phase 7)**: Depends on Foundational; practically needs US1 OTs for non-zero report
+- **US6 (Phase 8)**: Depends on Foundational + Feature 001 (technician-supervisor relationship via `created_by_id`); practically needs US1 OTs to show non-zero counts; builds on US2 backend list endpoint (`?technician_id` filter)
 - **Polish (Final)**: Depends on all stories complete
 
 ### User Story Internal Ordering
@@ -256,6 +291,12 @@ Phase 6 (US4):
 Phase 7 (US5):
   T049 ∥ T051            (backend use case and mobile repo impl parallel)
   T052 ∥ (T049 backend) (notifier can be stubbed while backend is in progress)
+
+Phase 8 (US6):
+  T060 ∥ T064            (backend port+impl and mobile DTO parallel)
+  T061                   (needs T060)
+  T062 ∥ T063 ∥ T065    (router endpoints and mobile repo impl parallel after T060/T061)
+  T066 ∥ T067            (notifier and screen can be written in parallel after T065)
 ```
 
 ---
@@ -279,7 +320,8 @@ Phase 7 (US5):
 4. US3 → Closure registration + offline sync → **demo** (core business action)
 5. US4 → Supervisor monitoring → **demo** (shift oversight complete)
 6. US5 → Location report → **demo** (analytics view)
-7. Polish → production-ready
+7. US6 → Technician workload grouped view → **demo** (managerial visibility)
+8. Polish → production-ready
 
 ### Key Implementation Notes
 

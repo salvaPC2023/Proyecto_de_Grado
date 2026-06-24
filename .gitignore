@@ -23,10 +23,12 @@ mobile/.flutter-plugins-dependencies
 mobile/.packages
 mobile/build/
 mobile/android/.gradle/
+mobile/android/.kotlin/
 mobile/android/local.properties
 mobile/android/app/debug/
 mobile/android/app/profile/
 mobile/android/app/release/
+mobile/android/app/src/main/java/
 mobile/ios/.symlinks/
 mobile/ios/Pods/
 mobile/ios/Flutter/App.framework
@@ -42,6 +44,9 @@ mobile/*.g.dart
 *.iml
 *.suo
 *.user
+
+# Docs (archivos locales, PDFs, imágenes)
+docs/
 
 # OS
 .DS_Store

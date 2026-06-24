@@ -2,6 +2,7 @@
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-06-08
+**Updated**: 2026-06-24
 **Feature**: [spec.md](../spec.md)
 
 ## Content Quality
@@ -38,3 +39,11 @@ Clarifications resolved during authoring:
   immediately. The only tracked transition is Released → Notified (correct full closure).
 
 All items pass. Spec is ready for `/speckit-plan`.
+
+### Cambios 2026-06-24
+
+- US6 agregada: Supervisor Views Technician Workload (P6) — vista de carga de trabajo
+  agrupada por técnico para el turno activo; solo lectura.
+- FR-023 a FR-026 agregados para la nueva historia.
+- SC-007 agregado: workload list carga en menos de 3 segundos.
+- Edge case agregado: todos los técnicos con 0 OTs aún aparecen en la lista.

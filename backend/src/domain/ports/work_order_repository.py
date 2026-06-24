@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from uuid import UUID
 
-from ..models.work_order import WorkOrder, OTStep, StepClosure
+from ..models.work_order import WorkOrder, OTStep, StepClosure, TechnicianWorkload
 
 
 class WorkOrderRepository(ABC):
@@ -16,7 +16,14 @@ class WorkOrderRepository(ABC):
     async def list_for_technician_shift(self, technician_id: UUID, shift_number: int) -> list[WorkOrder]: ...
 
     @abstractmethod
-    async def list_for_supervisor_shift(self, shift_number: int) -> list[WorkOrder]: ...
+    async def list_for_supervisor_shift(
+        self, shift_number: int, technician_id: UUID | None = None
+    ) -> list[WorkOrder]: ...
+
+    @abstractmethod
+    async def get_workload_by_supervisor(
+        self, supervisor_id: UUID, shift_number: int
+    ) -> list[TechnicianWorkload]: ...
 
     @abstractmethod
     async def count_unregistered_pm01_steps(self, ot_id: UUID) -> int: ...
