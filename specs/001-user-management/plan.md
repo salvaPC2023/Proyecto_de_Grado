@@ -7,12 +7,15 @@
 ## Summary
 
 The User Management module establishes the authentication and account lifecycle
-foundation for the mobile maintenance app. A pre-seeded Supervisor account is the sole
-administrative user. Supervisors create Technician accounts (auto-assigned password
-COLBO2026), view and edit the technician roster, and can disable accounts with immediate
-session invalidation. Both roles authenticate with JWT tokens stored securely on the
-device and persist across app restarts. Both roles can update their own display name and
-password; Technicians cannot access management screens.
+foundation for the mobile maintenance app. Five Supervisor accounts are pre-seeded at
+initialization (Fernando Salazar, Gonzalo Orellana, Iván Zenteno, Consuelo Urquizu,
+Eliana Sandóval). Each Supervisor manages an independent group of Technicians and can
+only see and act on their own group. Supervisors create Technician accounts (auto-assigned
+password COLBO2026), view and edit their roster, and can disable or re-enable accounts
+with immediate session invalidation. Permanent deletion of accounts is out of scope —
+lifecycle is managed via disable/enable only. Both roles authenticate with JWT tokens
+stored securely on the device and persist across app restarts. Both roles can update their
+own display name and password; Technicians cannot access management screens.
 
 ## Technical Context
 
@@ -50,7 +53,8 @@ module (internet required per spec assumption)
 - Passwords hashed with bcrypt; minimum 6 characters enforced in domain layer
 - Internet connection required for all actions; no offline auth
 
-**Scale/Scope**: 1 Supervisor, up to 200 Technicians
+**Scale/Scope**: 5 Supervisors, each with an independent Technician group; up to ~12
+Technicians per Supervisor in the Suministros implementation scope
 
 ## Constitution Check
 
@@ -62,7 +66,7 @@ module (internet required per spec assumption)
 | II. Documentation-Driven | ✅ PASS | spec.md validated; plan.md, data-model.md, contracts/, quickstart.md produced here |
 | III. Hexagonal Architecture | ✅ PASS | Backend: User domain model + ports isolated from FastAPI/SQLAlchemy; JWT validation in inbound adapter; PostgreSQL adapter for outbound. Mobile: AuthRepository + UserRepository as data-access ports; Riverpod Notifiers as ViewModels |
 | IV. Incremental Delivery | ✅ PASS | P1 = auth (login/logout/session) is the standalone MVP; P2 = create account; P3 = roster management; P4 = self-service profile — each independently demonstrable |
-| V. Simplicity | ✅ PASS | No refresh tokens (single JWT, 24h TTL); no token blacklist (status check per request); no email; no profile picture; single Supervisor |
+| V. Simplicity | ✅ PASS | No refresh tokens (single JWT, 24h TTL); no token blacklist (status check per request); no email; no profile picture; no account deletion — lifecycle via disable/enable only |
 
 No violations — Complexity Tracking section not required.
 
@@ -100,10 +104,9 @@ backend/
 │   │       ├── create_technician.py  # Create account with hashed default password
 │   │       ├── update_profile.py     # Update own display name
 │   │       ├── change_password.py    # Verify current + set new password
-│   │       ├── list_technicians.py   # Paginated technician list
+│   │       ├── list_technicians.py   # Technician list scoped to the requesting Supervisor
 │   │       ├── update_technician.py  # Supervisor edits technician profile
-│   │       ├── set_account_status.py # Supervisor enables/disables technician
-│   │       └── delete_technician.py  # Supervisor permanently deletes technician (no OTs)
+│   │       └── set_account_status.py # Supervisor enables/disables own technician (scoped)
 │   ├── adapters/
 │   │   ├── inbound/
 │   │   │   ├── routers/

@@ -1,4 +1,4 @@
-"""Create users table with supervisor seed
+"""Create users table and seed 5 Supervisors
 
 Revision ID: 001
 Revises:
@@ -17,6 +17,14 @@ down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
+_SUPERVISORS = [
+    ("fernando.salazar", "Fernando Salazar"),
+    ("gonzalo.orellana", "Gonzalo Orellana"),
+    ("ivan.zenteno", "Iván Zenteno"),
+    ("consuelo.urquizu", "Consuelo Urquizu"),
+    ("eliana.sandoval", "Eliana Sandóval"),
+]
+
 
 def upgrade() -> None:
     op.create_table(
@@ -33,24 +41,23 @@ def upgrade() -> None:
     op.create_index("ix_users_username", "users", ["username"], unique=True)
     op.create_index("ix_users_status", "users", ["status"])
 
-    supervisor_id = uuid.uuid4()
-    supervisor_username = os.environ.get("SUPERVISOR_USERNAME", "admin")
-    supervisor_password = os.environ.get("SUPERVISOR_PASSWORD", "Admin2026")
+    supervisor_password = os.environ.get("SUPERVISOR_PASSWORD", "Superv2026")
     password_hash = bcrypt.hashpw(supervisor_password.encode(), bcrypt.gensalt()).decode()
 
-    op.execute(
-        sa.text(
-            "INSERT INTO users (id, username, display_name, password_hash, role, status) "
-            "VALUES (:id, :username, :display_name, :password_hash, :role, :status)"
-        ).bindparams(
-            sa.bindparam("id", value=supervisor_id, type_=sa.dialects.postgresql.UUID(as_uuid=True)),
-            username=supervisor_username,
-            display_name="Supervisor",
-            password_hash=password_hash,
-            role="supervisor",
-            status="active",
+    for username, display_name in _SUPERVISORS:
+        op.execute(
+            sa.text(
+                "INSERT INTO users (id, username, display_name, password_hash, role, status) "
+                "VALUES (:id, :username, :display_name, :password_hash, :role, :status)"
+            ).bindparams(
+                sa.bindparam("id", value=uuid.uuid4(), type_=sa.dialects.postgresql.UUID(as_uuid=True)),
+                username=username,
+                display_name=display_name,
+                password_hash=password_hash,
+                role="supervisor",
+                status="active",
+            )
         )
-    )
 
 
 def downgrade() -> None:

@@ -9,14 +9,13 @@ from src.adapters.outbound.postgres.database import get_session
 from src.adapters.outbound.postgres.user_repository import PostgresUserRepository
 from src.config import settings
 from src.domain.models.user import User, UserStatus
+from src.domain.ports.user_repository import TechnicianNotFoundError
 from src.domain.use_cases.change_password import WrongPasswordError, change_password
 from src.domain.use_cases.create_technician import UsernameAlreadyExistsError, create_technician
-from src.domain.use_cases.delete_technician import CannotDeleteSupervisorError, delete_technician
 from src.domain.use_cases.list_technicians import list_technicians
 from src.domain.use_cases.set_account_status import CannotDisableSupervisorError, set_account_status
 from src.domain.use_cases.update_profile import update_profile
 from src.domain.use_cases.update_technician import update_technician
-from src.domain.ports.user_repository import TechnicianHasWorkOrdersError
 
 router = APIRouter(tags=["users"])
 
@@ -109,7 +108,7 @@ async def change_my_password(
 @router.get("/technicians", response_model=list[UserProfile])
 async def get_technicians(supervisor: User = Depends(require_supervisor), session=Depends(get_session)):
     repo = PostgresUserRepository(session)
-    users = await list_technicians(repo)
+    users = await list_technicians(supervisor.id, repo)
     return [_profile(u) for u in users]
 
 
@@ -140,7 +139,7 @@ async def get_technician(
     session=Depends(get_session),
 ):
     repo = PostgresUserRepository(session)
-    user = await repo.get_by_id(tech_id)
+    user = await repo.get_by_id_and_supervisor(tech_id, supervisor.id)
     if user is None:
         raise HTTPException(status_code=404, detail="Technician not found.")
     return _profile(user)
@@ -155,37 +154,15 @@ async def update_technician_endpoint(
 ):
     repo = PostgresUserRepository(session)
     try:
-        user = await update_technician(tech_id, repo, body.display_name, body.username)
+        user = await update_technician(tech_id, supervisor.id, repo, body.display_name, body.username)
+    except TechnicianNotFoundError:
+        raise HTTPException(status_code=404, detail="Technician not found.")
     except UsernameAlreadyExistsError as e:
         raise HTTPException(status_code=409, detail=f"Username '{e.username}' is already taken.")
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
-    if user is None:
-        raise HTTPException(status_code=404, detail="Technician not found.")
     await session.commit()
     return _profile(user)
-
-
-@router.delete("/technicians/{tech_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_technician_endpoint(
-    tech_id: UUID,
-    supervisor: User = Depends(require_supervisor),
-    session=Depends(get_session),
-):
-    repo = PostgresUserRepository(session)
-    try:
-        await delete_technician(tech_id, repo)
-    except CannotDeleteSupervisorError:
-        raise HTTPException(status_code=400, detail="Supervisor accounts cannot be deleted.")
-    except TechnicianHasWorkOrdersError:
-        raise HTTPException(
-            status_code=409,
-            detail="No se puede eliminar un técnico con órdenes de trabajo asignadas.",
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    await session.commit()
-    return None
 
 
 @router.patch("/technicians/{tech_id}/status", response_model=UserProfile)
@@ -198,7 +175,9 @@ async def set_technician_status(
     repo = PostgresUserRepository(session)
     try:
         status_val = UserStatus(body.status)
-        user = await set_account_status(tech_id, status_val, repo)
+        user = await set_account_status(tech_id, supervisor.id, status_val, repo)
+    except TechnicianNotFoundError:
+        raise HTTPException(status_code=404, detail="Technician not found.")
     except CannotDisableSupervisorError:
         raise HTTPException(status_code=400, detail="Supervisor accounts cannot be disabled.")
     except ValueError as e:

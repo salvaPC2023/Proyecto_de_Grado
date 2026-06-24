@@ -2,6 +2,7 @@
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-06-08
+**Updated**: 2026-06-24
 **Feature**: [spec.md](../spec.md)
 
 ## Content Quality
@@ -32,3 +33,14 @@
 ## Notes
 
 All items pass. Spec is ready for `/speckit-plan`.
+
+### Cambios 2026-06-24
+
+- Modelo multi-supervisor introducido: 5 supervisores pre-cargados con nombre completo.
+- Cada supervisor gestiona su propio grupo de técnicos de forma independiente (FR-005, FR-006).
+- Borrado permanente de cuentas eliminado del alcance; el ciclo de vida se gestiona
+  solo mediante creación, edición, deshabilitación y habilitación.
+- FRs renumerados tras eliminación de FR-017/018/019 (borrado).
+- SC-002 ajustado a hasta 50 técnicos por supervisor (refleja realidad operativa).
+- SC-006 agregado para validar explícitamente el aislamiento entre supervisores.
+- Edge case de dos supervisores editando el mismo técnico eliminado (imposible por diseño).
