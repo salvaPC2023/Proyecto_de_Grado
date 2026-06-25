@@ -293,17 +293,21 @@ counts, tap one technician, and verify only their OTs are shown.
 
 **Supervisor Monitoring**
 
-- **FR-018**: Supervisors MUST see all OTs for the current shift with their status
-  (Released / Notified).
-- **FR-019**: For any Notified OT, Supervisors MUST be able to view the full work
-  description entered by the Technician, with no truncation.
+- **FR-018**: Supervisors MUST see only OTs assigned to their own technicians
+  (i.e., OTs created by them) for the current shift, with their status
+  (Released / Notified). OTs created by other Supervisors MUST NOT be visible.
+- **FR-019**: For any Notified OT belonging to the Supervisor, they MUST be able
+  to view the full work description entered by the Technician, with no truncation.
 - **FR-020**: The Technician's safety question response MUST be displayed as an
   independent, clearly labelled field in the Supervisor's OT detail view.
+- **FR-027**: A Supervisor MUST NOT be able to access the detail of an OT they did
+  not create, even if the OT ID is known. The system MUST return a 403 error.
 
 **Technical Location Report**
 
 - **FR-021**: Supervisors MUST be able to view a list of all technical locations sorted
-  by registered OT count in descending order.
+  by their own registered OT count in descending order. OTs created by other Supervisors
+  MUST NOT be counted.
 
 **Technician Workload View**
 

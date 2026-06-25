@@ -12,7 +12,7 @@ import '../../../domain/models/user.dart';
 final _techLocationsProvider = FutureProvider<List<TechnicalLocation>>((ref) =>
     ref.read(techLocRepositoryProvider).listLocations());
 
-final _technicianListForFormProvider = FutureProvider<List<User>>(
+final _technicianListForFormProvider = FutureProvider.autoDispose<List<User>>(
   (ref) => ref.read(userRepositoryProvider).listTechnicians(),
 );
 
@@ -186,10 +186,13 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
               decoration: const InputDecoration(border: OutlineInputBorder()),
               value: _assignedTechnicianId,
               hint: const Text('Seleccionar técnico'),
-              items: techs.map((t) => DropdownMenuItem(
-                    value: t.id,
-                    child: Text(t.displayName),
-                  )).toList(),
+              items: techs
+                  .where((t) => t.status == UserStatus.active)
+                  .map((t) => DropdownMenuItem(
+                        value: t.id,
+                        child: Text(t.displayName),
+                      ))
+                  .toList(),
               onChanged: (v) => setState(() => _assignedTechnicianId = v),
             ),
           ),

@@ -52,13 +52,16 @@ class _TechnicianDetailScreenState
     }
   }
 
-  Future<void> _delete(User tech) async {
+  Future<void> _toggleStatus(User tech) async {
+    final isActive = tech.status == UserStatus.active;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Eliminar cuenta'),
+        title: Text(isActive ? 'Deshabilitar cuenta' : 'Habilitar cuenta'),
         content: Text(
-          '¿Está seguro de que desea eliminar la cuenta de ${tech.displayName}? Esta acción no se puede deshacer.',
+          isActive
+              ? '¿Está seguro de que desea deshabilitar la cuenta de ${tech.displayName}? El técnico no podrá iniciar sesión.'
+              : '¿Está seguro de que desea habilitar la cuenta de ${tech.displayName}?',
         ),
         actions: [
           TextButton(
@@ -66,27 +69,33 @@ class _TechnicianDetailScreenState
             child: const Text('Cancelar'),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: FilledButton.styleFrom(
+                backgroundColor: isActive ? Colors.orange : Colors.green),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Eliminar'),
+            child: Text(isActive ? 'Deshabilitar' : 'Habilitar'),
           ),
         ],
       ),
     );
     if (confirm != true) return;
     try {
-      await ref
-          .read(technicianListNotifierProvider.notifier)
-          .deleteTechnician(widget.technicianId);
+      final notifier = ref.read(technicianListNotifierProvider.notifier);
+      if (isActive) {
+        await notifier.disableTechnician(widget.technicianId);
+      } else {
+        await notifier.enableTechnician(widget.technicianId);
+      }
       if (!mounted) return;
-      context.pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(isActive
+                ? 'Cuenta deshabilitada'
+                : 'Cuenta habilitada')),
+      );
     } catch (e) {
       if (!mounted) return;
-      final msg = e.toString().contains('409')
-          ? 'No se puede eliminar: el técnico tiene órdenes de trabajo asignadas'
-          : e.toString();
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(msg)));
+          .showSnackBar(SnackBar(content: Text(e.toString())));
     }
   }
 
@@ -293,16 +302,18 @@ class _TechnicianDetailScreenState
             ),
             const SizedBox(height: 16),
 
-            // ── Eliminar cuenta ──────────────────────────────────────
+            // ── Deshabilitar / Habilitar cuenta ─────────────────────
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
-                onPressed: () => _delete(tech),
-                icon: const Icon(Icons.delete_outline),
-                label: const Text('Eliminar cuenta'),
+                onPressed: () => _toggleStatus(tech),
+                icon: Icon(isActive
+                    ? Icons.block_outlined
+                    : Icons.check_circle_outline),
+                label: Text(isActive ? 'Deshabilitar cuenta' : 'Habilitar cuenta'),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.red,
-                  side: const BorderSide(color: Colors.red),
+                  foregroundColor: isActive ? Colors.orange : Colors.green,
+                  side: BorderSide(color: isActive ? Colors.orange : Colors.green),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
                   padding: const EdgeInsets.symmetric(vertical: 14),

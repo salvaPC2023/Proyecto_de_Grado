@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers.dart';
 import '../../domain/models/user.dart';
 
-class TechnicianListNotifier extends AsyncNotifier<List<User>> {
+class TechnicianListNotifier extends AutoDisposeAsyncNotifier<List<User>> {
   @override
   Future<List<User>> build() => ref.read(userRepositoryProvider).listTechnicians();
 

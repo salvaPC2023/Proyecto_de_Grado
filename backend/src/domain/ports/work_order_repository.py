@@ -17,7 +17,7 @@ class WorkOrderRepository(ABC):
 
     @abstractmethod
     async def list_for_supervisor_shift(
-        self, shift_number: int, technician_id: UUID | None = None
+        self, supervisor_id: UUID, shift_number: int, technician_id: UUID | None = None
     ) -> list[WorkOrder]: ...
 
     @abstractmethod

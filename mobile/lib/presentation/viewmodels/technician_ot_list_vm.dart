@@ -8,7 +8,7 @@ class OtListResult {
   final bool isStale;
 }
 
-class TechnicianOtListNotifier extends AsyncNotifier<OtListResult> {
+class TechnicianOtListNotifier extends AutoDisposeAsyncNotifier<OtListResult> {
   @override
   Future<OtListResult> build() => _fetch();
 

@@ -3,7 +3,7 @@ import '../../core/providers.dart';
 import '../../domain/models/work_order.dart';
 
 class TechnicianWorkloadNotifier
-    extends AsyncNotifier<List<TechnicianWorkload>> {
+    extends AutoDisposeAsyncNotifier<List<TechnicianWorkload>> {
   @override
   Future<List<TechnicianWorkload>> build() async {
     return ref.read(workOrderRepositoryProvider).getWorkload();

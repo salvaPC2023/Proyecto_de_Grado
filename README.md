@@ -19,6 +19,7 @@ Desde la raíz del proyecto:
 
 ```powershell
 cd backend
+.venv\Scripts\Activate.ps1
 uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
@@ -28,6 +29,8 @@ El servidor queda disponible en `http://localhost:8000`. La documentación inter
 
 ```powershell
 cd backend
+# python -m venv .venv
+.venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
 ```
 
@@ -64,7 +67,7 @@ flutter run -d <DEVICE_ID> --dart-define=API_BASE_URL=http://<IP_DE_TU_PC>:8000/
 
 ```powershell
 cd mobile
-flutter run -d 138082553T002618 --dart-define=API_BASE_URL=http://192.168.1.26:8000/api/v1
+flutter run -d 138082553T002618 --dart-define=API_BASE_URL=http://192.168.1.8:8000/api/v1
 ```
 
 > La IP puede cambiar si te reconectas a la red. Repite el paso de obtener la IP si la app no conecta.

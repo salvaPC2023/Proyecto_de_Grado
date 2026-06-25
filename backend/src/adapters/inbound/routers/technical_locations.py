@@ -45,7 +45,7 @@ async def get_technical_location_report(
     session=Depends(get_session),
 ):
     repo = PostgresTechnicalLocationRepository(session)
-    entries = await get_location_report(repo)
+    entries = await get_location_report(supervisor.id, repo)
     return [
         TechnicalLocationReportEntryOut(
             technical_location=TechnicalLocationOut(

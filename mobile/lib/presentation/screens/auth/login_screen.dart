@@ -138,12 +138,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       const SizedBox(height: 28),
 
                       // Username field
-                      const _FieldLabel('Correo electrónico'),
+                      const _FieldLabel('Usuario'),
                       const SizedBox(height: 8),
                       _StyledField(
                         controller: _usernameCtrl,
-                        hintText: 'ejemplo@profesional.com',
-                        prefixIcon: Icons.email_outlined,
+                        hintText: 'ej. tecnico01',
+                        prefixIcon: Icons.person_outline,
                         textInputAction: TextInputAction.next,
                         enabled: !authState.isLoading,
                       ),

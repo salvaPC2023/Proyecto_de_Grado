@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers.dart';
 import '../../domain/models/technical_location.dart';
 
-class LocationReportNotifier extends AsyncNotifier<List<TechnicalLocationReportEntry>> {
+class LocationReportNotifier extends AutoDisposeAsyncNotifier<List<TechnicalLocationReportEntry>> {
   @override
   Future<List<TechnicalLocationReportEntry>> build() =>
       ref.read(techLocRepositoryProvider).getLocationReport();

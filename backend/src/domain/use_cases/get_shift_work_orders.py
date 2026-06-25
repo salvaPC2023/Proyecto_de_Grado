@@ -14,4 +14,4 @@ async def get_shift_work_orders(
     shift_number = get_current_shift(datetime.now(timezone.utc))
     if user.role == Role.technician:
         return await work_order_repo.list_for_technician_shift(user.id, shift_number)
-    return await work_order_repo.list_for_supervisor_shift(shift_number, technician_id=technician_id)
+    return await work_order_repo.list_for_supervisor_shift(user.id, shift_number, technician_id=technician_id)

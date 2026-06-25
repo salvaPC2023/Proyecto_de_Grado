@@ -92,14 +92,14 @@ final profileNotifierProvider =
     AsyncNotifierProvider.autoDispose<ProfileNotifier, User>(ProfileNotifier.new);
 
 final technicianListNotifierProvider =
-    AsyncNotifierProvider<TechnicianListNotifier, List<User>>(TechnicianListNotifier.new);
+    AsyncNotifierProvider.autoDispose<TechnicianListNotifier, List<User>>(TechnicianListNotifier.new);
 
 final supervisorDashboardProvider =
-    AsyncNotifierProvider<SupervisorDashboardNotifier, List<WorkOrder>>(
+    AsyncNotifierProvider.autoDispose<SupervisorDashboardNotifier, List<WorkOrder>>(
         SupervisorDashboardNotifier.new);
 
 final technicianOtListProvider =
-    AsyncNotifierProvider<TechnicianOtListNotifier, OtListResult>(
+    AsyncNotifierProvider.autoDispose<TechnicianOtListNotifier, OtListResult>(
         TechnicianOtListNotifier.new);
 
 final workOrderDetailProvider =
@@ -107,7 +107,7 @@ final workOrderDetailProvider =
         WorkOrderDetailNotifier.new);
 
 final locationReportProvider =
-    AsyncNotifierProvider<LocationReportNotifier, List<TechnicalLocationReportEntry>>(
+    AsyncNotifierProvider.autoDispose<LocationReportNotifier, List<TechnicalLocationReportEntry>>(
         LocationReportNotifier.new);
 
 final closureFormProvider =
@@ -118,7 +118,7 @@ final standardizationNotifierProvider =
         StandardizationNotifier.new);
 
 final technicianWorkloadProvider =
-    AsyncNotifierProvider<TechnicianWorkloadNotifier, List<TechnicianWorkload>>(
+    AsyncNotifierProvider.autoDispose<TechnicianWorkloadNotifier, List<TechnicianWorkload>>(
         TechnicianWorkloadNotifier.new);
 
 final workloadDrilldownProvider =

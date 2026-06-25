@@ -253,6 +253,8 @@ async def get_work_order(
         raise HTTPException(status_code=404, detail="Work Order not found.")
     if current_user.role == Role.technician and ot.assigned_technician_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied.")
+    if current_user.role == Role.supervisor and ot.created_by_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied.")
     return _detail_out(ot)
 
 

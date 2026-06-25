@@ -142,9 +142,13 @@ class PostgresWorkOrderRepository(WorkOrderRepository):
         return [_ot_to_domain(r) for r in result.scalars().all()]
 
     async def list_for_supervisor_shift(
-        self, shift_number: int, technician_id: UUID | None = None
+        self, supervisor_id: UUID, shift_number: int, technician_id: UUID | None = None
     ) -> list[WorkOrder]:
-        q = _ot_query().where(WorkOrderORM.shift_number == shift_number)
+        q = (
+            _ot_query()
+            .where(WorkOrderORM.shift_number == shift_number)
+            .where(WorkOrderORM.created_by_id == supervisor_id)
+        )
         if technician_id is not None:
             q = q.where(WorkOrderORM.assigned_technician_id == technician_id)
         result = await self._session.execute(q.order_by(WorkOrderORM.created_at.desc()))
@@ -240,10 +244,14 @@ class PostgresTechnicalLocationRepository(TechnicalLocationRepository):
         row = await self._session.get(TechnicalLocationORM, location_id)
         return _loc_to_domain(row) if row else None
 
-    async def get_location_report(self) -> list[TechnicalLocationReportEntry]:
+    async def get_location_report(self, supervisor_id: UUID) -> list[TechnicalLocationReportEntry]:
         result = await self._session.execute(
             select(TechnicalLocationORM, func.count(WorkOrderORM.id).label("ot_count"))
-            .outerjoin(WorkOrderORM, WorkOrderORM.technical_location_id == TechnicalLocationORM.id)
+            .outerjoin(
+                WorkOrderORM,
+                (WorkOrderORM.technical_location_id == TechnicalLocationORM.id)
+                & (WorkOrderORM.created_by_id == supervisor_id),
+            )
             .group_by(TechnicalLocationORM.id)
             .order_by(func.count(WorkOrderORM.id).desc())
         )
